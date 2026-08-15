@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
 };
 
 use crate::app::App;
@@ -188,11 +188,12 @@ pub fn draw_login(frame: &mut Frame, app: &mut App) {
             x: input_area.x,
             y: input_area.y + input_area.height,
             width: input_area.width,
-            height: 1,
+            height: 3,
         };
 
         let error_text = Paragraph::new(error.as_str())
             .alignment(Alignment::Center)
+            .wrap(Wrap { trim: true })
             .style(Style::new().fg(app.theme.error));
 
         frame.render_widget(error_text, error_area);

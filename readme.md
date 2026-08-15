@@ -15,6 +15,7 @@ It's fast to open, keyboard-driven, and stores only what it needs:
 ## Features
 
 - **KDBX4 vaults**: reads and writes standard `.kdbx` files, so you can open the same vault in KeePassXC, KeePassDX, or any other compatible client.
+- **Optional keyfile support**: unlocks vaults protected by a master password plus a KeePass keyfile while preserving password-only vault support.
 - **Fuzzy search**: start typing on the index screen to filter entries by name or user.
 - **TOTP codes**: generates live 2FA codes from a stored seed or `otpauth://` URI and copies them straight to your clipboard.
 - **Reuse warnings**: flags entries that share a password or username with another entry, so you can spot weak spots at a glance.
@@ -51,6 +52,13 @@ On first launch, if no vault is found at the configured path, Jaiba will:
 
 Once unlocked, you land on the index screen, where you can search, browse, and open entries.
 
+To open an existing vault, set `default_database` in the config. If the vault also requires a keyfile, set `keyfile` as well; Jaiba will still prompt for and require the master password:
+
+```toml
+default_database = "~/Documents/passwords.kdbx"
+keyfile = "~/Documents/passwords.keyx"
+```
+
 ## Keybindings
 
 ### Index screen
@@ -84,7 +92,7 @@ Commands are case-insensitive, so `:S` works the same as `:s`.
 | `Enter` | Edit the selected field / pick theme |
 | `Esc`   | Back to the index screen             |
 
-From Settings you can change the default vault path, auto-lock timeout, clipboard timeout, active theme, and the vault's master password (you'll be asked for the current password first, then the new one twice).
+From Settings you can change the default vault path, optional keyfile path, auto-lock timeout, clipboard timeout, active theme, and the vault's master password (you'll be asked for the current password first, then the new one twice).
 
 ## Configuration
 
@@ -92,12 +100,13 @@ Jaiba reads its config from `~/.config/jaiba/config.toml`:
 
 ```toml
 default_database = "~/.local/share/jaiba/default.kdbx"
+keyfile = "~/.local/share/jaiba/default.keyx" # optional; omit for password-only vaults
 auto_lock = 300           # seconds of inactivity before locking
 clipboard_timeout = 15    # seconds before a copied value is cleared
 theme = "catppuccin-mocha"
 ```
 
-All fields are optional; missing ones fall back to sane defaults. You can also edit these values live from the Settings screen instead of hand-editing the file.
+All fields are optional; missing ones fall back to sane defaults. In particular, omitting `keyfile` keeps the original password-only behavior. Paths support `~` expansion. You can also edit these values live from the Settings screen instead of hand-editing the file. See [`config.example.toml`](config.example.toml) for a copyable example.
 
 ## Themes
 
@@ -129,8 +138,9 @@ Pick one up from Settings → Theme, or set the `theme` key in `config.toml` dir
 
 ## Security notes
 
-- Vaults are standard KDBX4 files, encrypted with the master password you set.
-- Changing the master password re-encrypts the whole vault in place, and requires entering the _current_ password first — Jaiba won't let anyone with terminal access quietly swap the password without proving they already know it.
+- Vaults are standard KDBX4 files, encrypted with the master password you set and, when configured, the keyfile. Jaiba never treats the keyfile as a replacement for the password.
+- Jaiba reads the configured keyfile when unlocking. A missing, unreadable, empty, or incorrect keyfile produces an explicit error; only its path is stored in the config, never its contents.
+- Changing the master password re-encrypts the whole vault in place, and requires entering the _current_ password first. For a keyfile-protected vault, the configured keyfile remains part of the new composite key.
 - The clipboard is cleared automatically after `clipboard_timeout` seconds, but only if it still holds the value Jaiba copied (so it won't stomp on something else you copied in the meantime).
 - The app locks itself after `auto_lock` seconds of inactivity, clearing decrypted entries and the master password from memory.
 

@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::input::settings::{AUTO_LOCK_ROW, CLIPBOARD_TIMEOUT_ROW, DATABASE_ROW};
+use crate::input::settings::{AUTO_LOCK_ROW, CLIPBOARD_TIMEOUT_ROW, DATABASE_ROW, KEYFILE_ROW};
 use crate::util::wrap_help_items;
 
 const NAV_HELP_ITEMS: &[&str] = &["[↑↓] navigate", "[enter] edit / choose theme", "[esc] back"];
@@ -89,6 +89,12 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
         .as_ref()
         .map(|p| p.display().to_string())
         .unwrap_or_default();
+    let keyfile_value = app
+        .config
+        .keyfile
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
     let auto_lock_value = app.config.auto_lock.as_secs().to_string();
     let clipboard_timeout_value = app.config.clipboard_timeout.as_secs().to_string();
 
@@ -108,6 +114,10 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
         field(
             "Default database",
             render_value(DATABASE_ROW, database_value),
+        ),
+        field(
+            "Keyfile (optional)",
+            render_value(KEYFILE_ROW, keyfile_value),
         ),
         field(
             "Auto-lock (seconds)",

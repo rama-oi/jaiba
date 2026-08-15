@@ -27,7 +27,7 @@ pub fn detect_format(path: &Path) -> anyhow::Result<ImportFormat> {
 }
 
 pub fn import_kdbx(path: &Path, password: &str) -> anyhow::Result<Vec<Entry>> {
-    let (_, _, entries) = unlock_database(path, password)?;
+    let (_, _, entries) = unlock_database(path, password, None)?;
     Ok(entries)
 }
 
@@ -53,7 +53,10 @@ pub fn import_csv(path: &Path) -> anyhow::Result<Vec<Entry>> {
     let totp_col = find_col(&["totp", "otp", "otpauth", "login_totp"]);
 
     let get = |record: &csv::StringRecord, idx: Option<usize>| -> String {
-        idx.and_then(|i| record.get(i)).unwrap_or("").trim().to_string()
+        idx.and_then(|i| record.get(i))
+            .unwrap_or("")
+            .trim()
+            .to_string()
     };
 
     let mut entries = Vec::new();

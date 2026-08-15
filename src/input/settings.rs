@@ -2,23 +2,23 @@ use std::path::Path;
 use std::time::Duration;
 
 use crossterm::event::KeyCode;
-use keepass::DatabaseKey;
 
 use crate::app::{App, ExportStep, ImportStep, PasswordChangeStep, Screen};
 use crate::config::save_config;
-use crate::db::{Entry, calculate_warnings, save_database, unlock_database};
+use crate::db::{Entry, build_database_key, calculate_warnings, save_database, unlock_database};
 use crate::theme::load_theme;
 use crate::util::expand_tilde;
 
-pub const ROW_COUNT: usize = 7;
+pub const ROW_COUNT: usize = 8;
 
 pub const DATABASE_ROW: usize = 0;
-pub const AUTO_LOCK_ROW: usize = 1;
-pub const CLIPBOARD_TIMEOUT_ROW: usize = 2;
-pub const THEME_ROW: usize = 3;
-pub const CHANGE_PASSWORD_ROW: usize = 4;
-pub const IMPORT_ROW: usize = 5;
-pub const EXPORT_ROW: usize = 6;
+pub const KEYFILE_ROW: usize = 1;
+pub const AUTO_LOCK_ROW: usize = 2;
+pub const CLIPBOARD_TIMEOUT_ROW: usize = 3;
+pub const THEME_ROW: usize = 4;
+pub const CHANGE_PASSWORD_ROW: usize = 5;
+pub const IMPORT_ROW: usize = 6;
+pub const EXPORT_ROW: usize = 7;
 
 pub fn handle_settings_input(app: &mut App, key: KeyCode) {
     if app.exporting_database {
@@ -50,14 +50,22 @@ pub fn handle_settings_input(app: &mut App, key: KeyCode) {
         KeyCode::Down => {
             app.status = None;
             let selected = app.settings_state.selected().unwrap_or(0);
-            let next = if selected + 1 >= ROW_COUNT { 0 } else { selected + 1 };
+            let next = if selected + 1 >= ROW_COUNT {
+                0
+            } else {
+                selected + 1
+            };
             app.settings_state.select(Some(next));
         }
 
         KeyCode::Up => {
             app.status = None;
             let selected = app.settings_state.selected().unwrap_or(0);
-            let prev = if selected == 0 { ROW_COUNT - 1 } else { selected - 1 };
+            let prev = if selected == 0 {
+                ROW_COUNT - 1
+            } else {
+                selected - 1
+            };
             app.settings_state.select(Some(prev));
         }
 
@@ -79,6 +87,7 @@ fn activate_selected(app: &mut App) {
 
     match selected {
         DATABASE_ROW => start_editing_database(app),
+        KEYFILE_ROW => start_editing_keyfile(app),
         AUTO_LOCK_ROW => start_editing_auto_lock(app),
         CLIPBOARD_TIMEOUT_ROW => start_editing_clipboard_timeout(app),
         THEME_ROW => start_choosing_theme(app),
@@ -93,6 +102,17 @@ fn start_editing_database(app: &mut App) {
     app.field_buffer = app
         .config
         .default_database
+        .as_ref()
+        .map(|p| p.display().to_string())
+        .unwrap_or_default();
+    app.editing_field = true;
+    app.status = None;
+}
+
+fn start_editing_keyfile(app: &mut App) {
+    app.field_buffer = app
+        .config
+        .keyfile
         .as_ref()
         .map(|p| p.display().to_string())
         .unwrap_or_default();
@@ -140,6 +160,14 @@ fn commit_field(app: &mut App) {
     match selected {
         DATABASE_ROW => {
             app.config.default_database = if value.trim().is_empty() {
+                None
+            } else {
+                Some(expand_tilde(value.trim()))
+            };
+        }
+
+        KEYFILE_ROW => {
+            app.config.keyfile = if value.trim().is_empty() {
                 None
             } else {
                 Some(expand_tilde(value.trim()))
@@ -250,14 +278,22 @@ fn verify_current_password(app: &mut App) {
         return;
     };
 
-    match unlock_database(&path, &app.current_password_buffer) {
+    match unlock_database(
+        &path,
+        &app.current_password_buffer,
+        app.config.keyfile.as_deref(),
+    ) {
         Ok(_) => {
             app.current_password_buffer.clear();
             app.status = None;
             app.password_change_step = PasswordChangeStep::NewPassword;
         }
-        Err(_) => {
-            app.status = Some("that isn't the current master password".to_string());
+        Err(err) => {
+            app.status = Some(if app.config.keyfile.is_some() {
+                format!("couldn't verify current password and keyfile: {err}")
+            } else {
+                "that isn't the current master password".to_string()
+            });
             app.current_password_buffer.clear();
         }
     }
@@ -271,13 +307,23 @@ fn commit_password_change(app: &mut App) {
         return;
     }
 
+    let new_key = match build_database_key(&app.new_password_buffer, app.config.keyfile.as_deref())
+    {
+        Ok(key) => key,
+        Err(err) => {
+            app.status = Some(format!("couldn't change password: {err:#}"));
+            app.new_password_buffer.clear();
+            app.new_password_confirm.clear();
+            app.password_change_step = PasswordChangeStep::NewPassword;
+            return;
+        }
+    };
+
     let (Some(path), Some(db)) = (app.config.default_database.clone(), app.kdbx.as_mut()) else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
     };
-
-    let new_key = DatabaseKey::new().with_password(&app.new_password_buffer);
 
     app.status = Some(match save_database(&path, &new_key, db, &mut app.entries) {
         Ok(()) => {
@@ -585,7 +631,11 @@ fn handle_theme_picker_input(app: &mut App, key: KeyCode) {
                 return;
             }
             let selected = app.theme_state.selected().unwrap_or(0);
-            let next = if selected + 1 >= count { 0 } else { selected + 1 };
+            let next = if selected + 1 >= count {
+                0
+            } else {
+                selected + 1
+            };
             app.theme_state.select(Some(next));
         }
 
@@ -594,7 +644,11 @@ fn handle_theme_picker_input(app: &mut App, key: KeyCode) {
                 return;
             }
             let selected = app.theme_state.selected().unwrap_or(0);
-            let prev = if selected == 0 { count - 1 } else { selected - 1 };
+            let prev = if selected == 0 {
+                count - 1
+            } else {
+                selected - 1
+            };
             app.theme_state.select(Some(prev));
         }
 

@@ -132,10 +132,7 @@ const DEFAULT_THEMES: &[(&str, &str)] = &[
         "melange_dark.toml",
         include_str!("../themes/melange_dark.toml"),
     ),
-    (
-        "pomboverso.toml",
-        include_str!("../themes/pomboverso.toml"),
-    ),
+    ("pomboverso.toml", include_str!("../themes/pomboverso.toml")),
     ("rama.toml", include_str!("../themes/rama.toml")),
     ("teyin.toml", include_str!("../themes/teyin.toml")),
     (
