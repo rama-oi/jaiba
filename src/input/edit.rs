@@ -147,6 +147,11 @@ fn handle_exit_confirmation(app: &mut App, key: KeyCode) {
             app.status = Some("Changes discarded".to_string());
         }
 
+        KeyCode::Esc => {
+            app.confirm_exit = false;
+            app.status = None;
+        }
+
         _ => {}
     }
 }

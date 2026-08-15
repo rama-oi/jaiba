@@ -134,7 +134,6 @@ fn finish_create_database(app: &mut App) {
         .clone()
         .unwrap_or_else(default_new_database_path);
 
-    match create_database(&path, &app.password, app.config.keyfile.as_deref()) {
     if path.is_file() {
         app.config.default_database = Some(path.clone());
         let _ = save_config(&app.config);
@@ -149,7 +148,7 @@ fn finish_create_database(app: &mut App) {
         return;
     }
 
-    match create_database(&path, &app.password) {
+    match create_database(&path, &app.password, app.config.keyfile.as_deref()) {
         Ok((db, key, entries)) => {
             app.config.default_database = Some(path.clone());
             let save_result = save_config(&app.config);
