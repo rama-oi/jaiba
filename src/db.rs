@@ -79,6 +79,7 @@ pub struct Entry {
     pub password: String,
     pub url: String,
     pub totp: String,
+    pub notes: String,
     pub date_last_modify: String,
     pub password_reuse_count: u32,
     pub duplicate_user_count: u32,
@@ -124,6 +125,7 @@ pub fn unlock_database(
                 password: e.get_password().unwrap_or_default().to_string(),
                 url: e.get_url().unwrap_or_default().to_string(),
                 totp: resolve_totp(&e),
+                notes: e.get(fields::NOTES).unwrap_or_default().to_string(),
                 date_last_modify,
                 password_reuse_count: 0,
                 duplicate_user_count: 0,
@@ -250,6 +252,7 @@ fn apply_fields(e: &mut EntryMut<'_>, entry: &Entry) {
     e.set_protected(fields::PASSWORD, entry.password.clone());
     e.set_unprotected(fields::URL, entry.url.clone());
     e.set_unprotected(fields::OTP, entry.totp.clone());
+    e.set_unprotected(fields::NOTES, entry.notes.clone());
     e.times.last_modification = Some(Times::now());
 }
 

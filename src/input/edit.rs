@@ -3,8 +3,8 @@ use crossterm::event::KeyCode;
 use crate::app::{App, Screen};
 use crate::db::{calculate_warnings, delete_entry, save_database};
 
-const FIELD_COUNT: usize = 6;
-const LAST_MODIFIED_INDEX: usize = 5;
+const FIELD_COUNT: usize = 7;
+const LAST_MODIFIED_INDEX: usize = 6;
 
 pub fn handle_edit_input(app: &mut App, key: KeyCode) {
     if app.editing_field {
@@ -83,6 +83,7 @@ fn start_editing_field(app: &mut App) {
         2 => entry.password.clone(),
         3 => entry.url.clone(),
         4 => entry.totp.clone(),
+        5 => entry.notes.clone(),
         _ => return,
     };
 
@@ -105,6 +106,7 @@ fn commit_field(app: &mut App) {
             2 => entry.password = value,
             3 => entry.url = value,
             4 => entry.totp = value,
+            5 => entry.notes = value,
             _ => {}
         }
     }
@@ -132,6 +134,7 @@ fn has_unsaved_changes(app: &App) -> bool {
         || entry.password != original.password
         || entry.url != original.url
         || entry.totp != original.totp
+        || entry.notes != original.notes
 }
 
 fn handle_exit_confirmation(app: &mut App, key: KeyCode) {

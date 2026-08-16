@@ -33,6 +33,7 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     let user = entry.user.clone();
     let url = entry.url.clone();
     let totp_raw = entry.totp.clone();
+    let notes = entry.notes.clone();
     let last_modified = entry.date_last_modify.clone();
     let duplicate_user_count = entry.duplicate_user_count;
     let password_reuse_count = entry.password_reuse_count;
@@ -135,6 +136,24 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
         ])
     };
 
+    let notes_lines: Vec<Line<'static>> = if editing_field && selected == 5 {
+        vec![Line::from(vec![
+            Span::styled(field_buffer.clone(), editing_style),
+            Span::styled("▏", accent_style),
+        ])]
+    } else if notes.is_empty() {
+        vec![Line::from(Span::styled("(empty)", placeholder))]
+    } else {
+        notes.split('\n').map(|l| Line::from(Span::styled(l.to_string(), normal))).collect()
+    };
+
+    let notes_field = |label: &'static str, lines: Vec<Line<'static>>| -> ListItem<'static> {
+        let mut content = vec![Line::from(Span::styled(label, label_style))];
+        content.extend(lines);
+        content.push(Line::from("")); // spacer between fields
+        ListItem::new(content)
+    };
+
     let totp_field = |label: &'static str,
                       value: Line<'static>,
                       code_line: Line<'static>|
@@ -153,7 +172,8 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
         field("Password", render_value(2, password_text, password_extra)),
         field("URL", render_value(3, url, vec![])),
         totp_field("TOTP", render_value(4, totp_raw, vec![]), totp_code_line),
-        field("Last modified", render_value(5, last_modified, vec![])),
+        notes_field("Notes", notes_lines),
+        field("Last modified", render_value(6, last_modified, vec![])),
     ];
 
     let title = if is_new_entry {

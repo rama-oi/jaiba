@@ -51,6 +51,7 @@ pub fn import_csv(path: &Path) -> anyhow::Result<Vec<Entry>> {
     let password_col = find_col(&["password", "login_password"]);
     let url_col = find_col(&["url", "uri", "website", "login_uri"]);
     let totp_col = find_col(&["totp", "otp", "otpauth", "login_totp"]);
+    let notes_col = find_col(&["notes", "note", "comments", "extra", "login_notes"]);
 
     let get = |record: &csv::StringRecord, idx: Option<usize>| -> String {
         idx.and_then(|i| record.get(i))
@@ -71,6 +72,7 @@ pub fn import_csv(path: &Path) -> anyhow::Result<Vec<Entry>> {
             password: get(&record, password_col),
             url: get(&record, url_col),
             totp: get(&record, totp_col),
+            notes: get(&record, notes_col),
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,
@@ -120,6 +122,8 @@ struct BitwardenItem {
     #[serde(default)]
     name: String,
     #[serde(default)]
+    notes: Option<String>,
+    #[serde(default)]
     login: Option<BitwardenLogin>,
 }
 
@@ -156,6 +160,7 @@ impl From<BitwardenItem> for Entry {
                 .find_map(|u| u.uri)
                 .unwrap_or_default(),
             totp: login.totp.unwrap_or_default(),
+            notes: item.notes.unwrap_or_default(),
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,
@@ -175,6 +180,8 @@ struct FlatEntry {
     url: String,
     #[serde(alias = "otp", default)]
     totp: String,
+    #[serde(alias = "note", alias = "comments", alias = "extra", default)]
+    notes: String,
 }
 
 impl From<FlatEntry> for Entry {
@@ -186,6 +193,7 @@ impl From<FlatEntry> for Entry {
             password: f.password,
             url: f.url,
             totp: f.totp,
+            notes: f.notes,
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,

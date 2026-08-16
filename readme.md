@@ -11,6 +11,7 @@ It's fast to open, keyboard-driven, and stores only what it needs:
 - Password
 - TOTP (two-factor codes)
 - URL
+- Notes
 
 ## Features
 

@@ -31,7 +31,7 @@ pub fn export_csv(path: &Path, entries: &[Entry]) -> anyhow::Result<()> {
         .from_path(path)
         .with_context(|| format!("couldn't create {}", path.display()))?;
 
-    writer.write_record(["name", "username", "password", "url", "totp"])?;
+    writer.write_record(["name", "username", "password", "url", "totp", "notes"])?;
 
     for entry in entries {
         writer.write_record([
@@ -40,6 +40,7 @@ pub fn export_csv(path: &Path, entries: &[Entry]) -> anyhow::Result<()> {
             entry.password.as_str(),
             entry.url.as_str(),
             entry.totp.as_str(),
+            entry.notes.as_str(),
         ])?;
     }
 
@@ -55,6 +56,7 @@ struct ExportEntry<'a> {
     password: &'a str,
     url: &'a str,
     totp: &'a str,
+    notes: &'a str,
 }
 
 pub fn export_json(path: &Path, entries: &[Entry]) -> anyhow::Result<()> {
@@ -66,6 +68,7 @@ pub fn export_json(path: &Path, entries: &[Entry]) -> anyhow::Result<()> {
             password: &e.password,
             url: &e.url,
             totp: &e.totp,
+            notes: &e.notes,
         })
         .collect();
 
