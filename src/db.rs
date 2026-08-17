@@ -294,6 +294,7 @@ pub fn calculate_warnings(entries: &mut Vec<Entry>) {
 #[cfg(test)]
 mod tests {
     use super::{build_database_key, create_database, save_database, unlock_database};
+    use keepass::db::fields;
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -340,6 +341,61 @@ mod tests {
             .expect("password-only database should be created");
         unlock_database(&database_path, "correct horse", None)
             .expect("password-only database should unlock");
+    }
+
+    #[test]
+    fn unlock_database_reads_entry_notes() {
+        let dir = TestDir::new();
+        let database_path = dir.join("notes.kdbx");
+        let (mut database, key, mut entries) =
+            create_database(&database_path, "correct horse", None)
+                .expect("database should be created");
+
+        {
+            let mut root = database.root_mut();
+            let mut entry = root.add_entry();
+            entry.set_unprotected(fields::TITLE, "Entry with notes");
+            entry.set_unprotected(fields::NOTES, "first line\nsecond line");
+        }
+
+        save_database(&database_path, &key, &mut database, &mut entries)
+            .expect("database should be saved");
+
+        let (_, _, entries) =
+            unlock_database(&database_path, "correct horse", None).expect("database should unlock");
+        let entry = entries
+            .iter()
+            .find(|entry| entry.name == "Entry with notes")
+            .expect("entry should be loaded");
+
+        assert_eq!(entry.notes, "first line\nsecond line");
+    }
+
+    #[test]
+    fn unlock_database_defaults_missing_notes_to_empty() {
+        let dir = TestDir::new();
+        let database_path = dir.join("no-notes.kdbx");
+        let (mut database, key, mut entries) =
+            create_database(&database_path, "correct horse", None)
+                .expect("database should be created");
+
+        {
+            let mut root = database.root_mut();
+            let mut entry = root.add_entry();
+            entry.set_unprotected(fields::TITLE, "Entry without notes");
+        }
+
+        save_database(&database_path, &key, &mut database, &mut entries)
+            .expect("database should be saved");
+
+        let (_, _, entries) =
+            unlock_database(&database_path, "correct horse", None).expect("database should unlock");
+        let entry = entries
+            .iter()
+            .find(|entry| entry.name == "Entry without notes")
+            .expect("entry should be loaded");
+
+        assert!(entry.notes.is_empty());
     }
 
     #[test]

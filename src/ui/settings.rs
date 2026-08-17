@@ -339,7 +339,9 @@ fn draw_import(frame: &mut Frame, app: &mut App) {
     };
 
     let default_hint = match app.import_step {
-        crate::app::ImportStep::Path => "only name, user, password, url, totp and notes are imported",
+        crate::app::ImportStep::Path => {
+            "only name, user, password, url, totp and notes are imported"
+        }
         crate::app::ImportStep::KdbxPassword => "that file's own master password, not this vault's",
     };
     let hint_text = app

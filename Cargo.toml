@@ -34,6 +34,7 @@ anyhow = "1.0.104"
 toml = "1.1.4"
 keepass = { version = "0.13.20", features = ["save_kdbx4", "totp"] }
 chrono = "0.4.45"
+unicode-width = "0.2.2"
 
 [profile.release]
 strip = true
