@@ -1,9 +1,5 @@
-# Existing KDBX database to open.
-default_database = "~/.local/share/jaiba/default.kdbx"
-
-# Optional KeePass keyfile. Leave this unset for password-only databases.
-# The master password is always still required.
-keyfile = "~/.local/share/jaiba/default.keyx"
+# Vault opened on startup.
+default_vault = "personal"
 
 # Seconds of inactivity before Jaiba locks the database.
 auto_lock = 300
@@ -13,3 +9,14 @@ clipboard_timeout = 15
 
 # Name of a theme installed in ~/.config/jaiba/themes/.
 theme = "catppuccin-mocha"
+
+[[vaults]]
+name = "personal"
+path = "~/.local/share/jaiba/personal.kdbx"
+
+[[vaults]]
+name = "work"
+path = "~/.local/share/jaiba/work.kdbx"
+
+# Optional KeePass keyfile. The master password is always still required.
+keyfile = "~/.local/share/jaiba/work.keyx"

@@ -1,8 +1,10 @@
 use crossterm::event::KeyCode;
 
 use crate::app::App;
+use crate::app::lock_all_vaults;
 use crate::clipboard::{cp_password, cp_totp, cp_url, cp_user};
 use crate::db::Entry;
+use crate::input::vaults::open_vaults;
 
 const COMMANDS: &[(&str, Command)] = &[
     ("u", Command::CopyUser),
@@ -12,6 +14,8 @@ const COMMANDS: &[(&str, Command)] = &[
     ("a", Command::AddEntry),
     ("q", Command::Quit),
     ("s", Command::Settings),
+    ("v", Command::Vaults),
+    ("l", Command::Lock),
 ];
 
 #[derive(Clone, Copy)]
@@ -23,6 +27,8 @@ enum Command {
     AddEntry,
     Quit,
     Settings,
+    Vaults,
+    Lock,
 }
 
 enum CommandMatch {
@@ -99,6 +105,8 @@ fn execute_command(app: &mut App, cmd: Command) {
         Command::AddEntry => add_entry(app),
         Command::Quit => app.should_quit = true,
         Command::Settings => open_settings(app),
+        Command::Vaults => open_vaults(app),
+        Command::Lock => lock_all_vaults(app, "Locked"),
     }
 }
 
@@ -120,12 +128,12 @@ pub fn preview_entry(app: &mut App) {
     let Some(&entry_idx) = app.filtered.get(selected) else {
         return;
     };
-    let Some(entry) = app.entries.get(entry_idx) else {
+    let Some(entry) = app.entries().get(entry_idx).cloned() else {
         return;
     };
 
     app.edit_entry = Some(entry.clone());
-    app.edit_original = Some(entry.clone());
+    app.edit_original = Some(entry);
     app.edit_target = Some(entry_idx);
     app.edit_state.select(Some(0));
     app.reveal_password = false;

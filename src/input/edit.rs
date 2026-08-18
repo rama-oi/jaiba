@@ -182,24 +182,34 @@ fn save_edit(app: &mut App) {
         return;
     };
 
-    let saved_idx = match app.edit_target {
-        Some(idx) => {
-            if let Some(slot) = app.entries.get_mut(idx) {
-                *slot = entry;
+    let edit_target = app.edit_target;
+    let saved_idx = {
+        let Some(entries) = app.entries_mut() else {
+            app.status = Some("Not saved: database is locked".to_string());
+            return;
+        };
+
+        match edit_target {
+            Some(idx) => {
+                if let Some(slot) = entries.get_mut(idx) {
+                    *slot = entry;
+                }
+                Some(idx)
             }
-            Some(idx)
-        }
-        None => {
-            if entry.name.trim().is_empty() {
-                None
-            } else {
-                app.entries.push(entry);
-                Some(app.entries.len() - 1)
+            None => {
+                if entry.name.trim().is_empty() {
+                    None
+                } else {
+                    entries.push(entry);
+                    Some(entries.len() - 1)
+                }
             }
         }
     };
 
-    calculate_warnings(&mut app.entries);
+    if let Some(entries) = app.entries_mut() {
+        calculate_warnings(entries);
+    }
     app.refresh_filter();
 
     if let Some(idx) = saved_idx {
@@ -208,20 +218,21 @@ fn save_edit(app: &mut App) {
 }
 
 fn persist_entry(app: &mut App, idx: usize) {
-    let (Some(db), Some(key), Some(path)) = (
-        app.kdbx.as_mut(),
-        app.db_key.as_ref(),
-        app.config.default_database.as_ref(),
-    ) else {
+    let Some(session) = app.active_session_mut() else {
         app.status = Some("Not saved: database is locked".to_string());
         return;
     };
 
-    let Some(target) = app.entries.get_mut(idx) else {
+    let Some(target) = session.entries.get_mut(idx) else {
         return;
     };
 
-    match save_database(path, key, db, std::slice::from_mut(target)) {
+    match save_database(
+        &session.path,
+        &session.db_key,
+        &mut session.database,
+        std::slice::from_mut(target),
+    ) {
         Ok(()) => app.status = Some("Saved".to_string()),
         Err(err) => app.status = Some(format!("Failed to save: {err:#}")),
     }
@@ -252,17 +263,13 @@ fn delete_current_entry(app: &mut App) {
     };
 
     if let Some(id) = entry.id {
-        let (Some(db), Some(key), Some(path)) = (
-            app.kdbx.as_mut(),
-            app.db_key.as_ref(),
-            app.config.default_database.as_ref(),
-        ) else {
+        let Some(session) = app.active_session_mut() else {
             app.status = Some("Not deleted: database is locked".to_string());
             app.edit_entry = Some(entry);
             return;
         };
 
-        if let Err(err) = delete_entry(path, key, db, id) {
+        if let Err(err) = delete_entry(&session.path, &session.db_key, &mut session.database, id) {
             app.status = Some(format!("Failed to delete: {err:#}"));
             app.edit_entry = Some(entry);
             return;
@@ -270,12 +277,16 @@ fn delete_current_entry(app: &mut App) {
     }
 
     if let Some(idx) = app.edit_target {
-        if idx < app.entries.len() {
-            app.entries.remove(idx);
+        if let Some(entries) = app.entries_mut()
+            && idx < entries.len()
+        {
+            entries.remove(idx);
         }
     }
 
-    calculate_warnings(&mut app.entries);
+    if let Some(entries) = app.entries_mut() {
+        calculate_warnings(entries);
+    }
     app.refresh_filter();
 
     reset_edit_state(app);

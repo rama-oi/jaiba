@@ -49,13 +49,50 @@ pub fn current_totp_code(raw: &str) -> Option<TotpCode> {
         return None;
     }
 
-    let totp: keepass::db::TOTP = raw.parse().ok()?;
+    let totp = parse_totp(raw)?;
     let otp_code = totp.value_now().ok()?;
 
     Some(TotpCode {
         code: otp_code.code,
         valid_for: otp_code.valid_for,
     })
+}
+
+fn parse_totp(raw: &str) -> Option<keepass::db::TOTP> {
+    let raw = raw.trim();
+    let mut uri = url::Url::parse(raw).ok()?;
+
+    if uri.scheme() == "otpauth" && uri.host_str() == Some("totp") {
+        let mut has_digits = false;
+        let mut query = uri
+            .query_pairs()
+            .map(|(key, value)| {
+                let key = key.into_owned();
+                let value = match key.as_str() {
+                    "secret" => value
+                        .chars()
+                        .filter(|character| !character.is_ascii_whitespace() && *character != '-')
+                        .collect::<String>()
+                        .to_ascii_uppercase(),
+                    "algorithm" => value.to_ascii_uppercase(),
+                    "digits" => {
+                        has_digits = true;
+                        value.into_owned()
+                    }
+                    _ => value.into_owned(),
+                };
+                (key, value)
+            })
+            .collect::<Vec<_>>();
+
+        if !has_digits {
+            query.push(("digits".to_string(), "6".to_string()));
+        }
+
+        uri.query_pairs_mut().clear().extend_pairs(&query);
+    }
+
+    uri.as_str().parse().ok()
 }
 
 fn urlencoding_encode(input: &str) -> String {
@@ -293,7 +330,9 @@ pub fn calculate_warnings(entries: &mut Vec<Entry>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_database_key, create_database, save_database, unlock_database};
+    use super::{
+        build_database_key, create_database, current_totp_code, save_database, unlock_database,
+    };
     use std::fs;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -422,5 +461,34 @@ mod tests {
             .to_string();
         assert!(error.contains("password + keyfile"));
         assert!(error.contains("Incorrect key"));
+    }
+
+    #[test]
+    fn lowercase_otpauth_secret_uses_six_digit_default() {
+        let uri = concat!(
+            "otpauth://totp/Example%3Auser%40example.com?",
+            "secret=jbswy3dpehpk3pxp&issuer=Example"
+        );
+
+        let code = current_totp_code(uri).expect("lowercase Base32 secret should be accepted");
+
+        assert_eq!(code.code.len(), 6);
+        assert!(
+            code.code
+                .chars()
+                .all(|character| character.is_ascii_digit())
+        );
+    }
+
+    #[test]
+    fn explicit_totp_digit_count_is_preserved() {
+        let uri = concat!(
+            "otpauth://totp/Example%3Auser%40example.com?",
+            "secret=JBSWY3DPEHPK3PXP&digits=8&issuer=Example"
+        );
+
+        let code = current_totp_code(uri).expect("valid TOTP URI should generate a code");
+
+        assert_eq!(code.code.len(), 8);
     }
 }

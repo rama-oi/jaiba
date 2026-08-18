@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use crossterm::event::KeyCode;
 
-use crate::app::{App, ExportStep, ImportStep, PasswordChangeStep, Screen};
+use crate::app::{App, ExportStep, ImportStep, PasswordChangeStep, Screen, clear_secret};
 use crate::config::save_config;
 use crate::db::{Entry, build_database_key, calculate_warnings, save_database, unlock_database};
 use crate::theme::load_theme;
@@ -100,10 +100,8 @@ fn activate_selected(app: &mut App) {
 
 fn start_editing_database(app: &mut App) {
     app.field_buffer = app
-        .config
-        .default_database
-        .as_ref()
-        .map(|p| p.display().to_string())
+        .active_vault_config()
+        .map(|vault| vault.path.display().to_string())
         .unwrap_or_default();
     app.editing_field = true;
     app.status = None;
@@ -111,10 +109,9 @@ fn start_editing_database(app: &mut App) {
 
 fn start_editing_keyfile(app: &mut App) {
     app.field_buffer = app
-        .config
-        .keyfile
-        .as_ref()
-        .map(|p| p.display().to_string())
+        .active_vault_config()
+        .and_then(|vault| vault.keyfile.as_ref())
+        .map(|path| path.display().to_string())
         .unwrap_or_default();
     app.editing_field = true;
     app.status = None;
@@ -159,15 +156,23 @@ fn commit_field(app: &mut App) {
 
     match selected {
         DATABASE_ROW => {
-            app.config.default_database = if value.trim().is_empty() {
-                None
-            } else {
-                Some(expand_tilde(value.trim()))
+            if value.trim().is_empty() {
+                app.status = Some("database path can't be empty".to_string());
+                return;
+            }
+            let Some(vault) = app.active_vault_config_mut() else {
+                app.status = Some("no active vault".to_string());
+                return;
             };
+            vault.path = expand_tilde(value.trim());
         }
 
         KEYFILE_ROW => {
-            app.config.keyfile = if value.trim().is_empty() {
+            let Some(vault) = app.active_vault_config_mut() else {
+                app.status = Some("no active vault".to_string());
+                return;
+            };
+            vault.keyfile = if value.trim().is_empty() {
                 None
             } else {
                 Some(expand_tilde(value.trim()))
@@ -193,6 +198,8 @@ fn commit_field(app: &mut App) {
         _ => return,
     }
 
+    app.sync_active_session_metadata();
+
     app.status = Some(match save_config(&app.config) {
         Ok(()) => "saved".to_string(),
         Err(err) => format!("couldn't save config: {err}"),
@@ -207,9 +214,9 @@ fn parse_seconds(value: &str) -> Result<u64, String> {
 }
 
 fn start_change_password(app: &mut App) {
-    app.current_password_buffer.clear();
-    app.new_password_buffer.clear();
-    app.new_password_confirm.clear();
+    clear_secret(&mut app.current_password_buffer);
+    clear_secret(&mut app.new_password_buffer);
+    clear_secret(&mut app.new_password_confirm);
     app.password_change_step = PasswordChangeStep::CurrentPassword;
     app.changing_password = true;
     app.status = None;
@@ -218,9 +225,9 @@ fn start_change_password(app: &mut App) {
 fn cancel_change_password(app: &mut App) {
     app.changing_password = false;
     app.password_change_step = PasswordChangeStep::CurrentPassword;
-    app.current_password_buffer.clear();
-    app.new_password_buffer.clear();
-    app.new_password_confirm.clear();
+    clear_secret(&mut app.current_password_buffer);
+    clear_secret(&mut app.new_password_buffer);
+    clear_secret(&mut app.new_password_confirm);
     app.status = None;
 }
 
@@ -272,29 +279,30 @@ fn handle_change_password_input(app: &mut App, key: KeyCode) {
 }
 
 fn verify_current_password(app: &mut App) {
-    let Some(path) = app.config.default_database.clone() else {
+    let Some((path, keyfile)) = app
+        .active_session()
+        .map(|vault| (vault.path.clone(), vault.keyfile.clone()))
+    else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
     };
 
-    match unlock_database(
-        &path,
-        &app.current_password_buffer,
-        app.config.keyfile.as_deref(),
-    ) {
+    let mut password = std::mem::take(&mut app.current_password_buffer);
+    let result = unlock_database(&path, &password, keyfile.as_deref());
+    clear_secret(&mut password);
+
+    match result {
         Ok(_) => {
-            app.current_password_buffer.clear();
             app.status = None;
             app.password_change_step = PasswordChangeStep::NewPassword;
         }
         Err(err) => {
-            app.status = Some(if app.config.keyfile.is_some() {
+            app.status = Some(if keyfile.is_some() {
                 format!("couldn't verify current password and keyfile: {err}")
             } else {
                 "that isn't the current master password".to_string()
             });
-            app.current_password_buffer.clear();
         }
     }
 }
@@ -302,42 +310,54 @@ fn verify_current_password(app: &mut App) {
 fn commit_password_change(app: &mut App) {
     if app.new_password_confirm != app.new_password_buffer {
         app.status = Some("passwords don't match".to_string());
-        app.new_password_confirm.clear();
+        clear_secret(&mut app.new_password_confirm);
         app.password_change_step = PasswordChangeStep::NewPassword;
         return;
     }
 
-    let new_key = match build_database_key(&app.new_password_buffer, app.config.keyfile.as_deref())
-    {
-        Ok(key) => key,
-        Err(err) => {
-            app.status = Some(format!("couldn't change password: {err:#}"));
-            app.new_password_buffer.clear();
-            app.new_password_confirm.clear();
-            app.password_change_step = PasswordChangeStep::NewPassword;
-            return;
-        }
-    };
-
-    let (Some(path), Some(db)) = (app.config.default_database.clone(), app.kdbx.as_mut()) else {
+    let Some(keyfile) = app.active_session().map(|vault| vault.keyfile.clone()) else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
     };
 
-    app.status = Some(match save_database(&path, &new_key, db, &mut app.entries) {
-        Ok(()) => {
-            app.db_key = Some(new_key);
-            "master password changed".to_string()
+    let new_key = match build_database_key(&app.new_password_buffer, keyfile.as_deref()) {
+        Ok(key) => key,
+        Err(err) => {
+            app.status = Some(format!("couldn't change password: {err:#}"));
+            clear_secret(&mut app.new_password_buffer);
+            clear_secret(&mut app.new_password_confirm);
+            app.password_change_step = PasswordChangeStep::NewPassword;
+            return;
         }
+    };
+
+    let Some(session) = app.active_session_mut() else {
+        app.status = Some("no unlocked database".to_string());
+        cancel_change_password(app);
+        return;
+    };
+
+    let result = save_database(
+        &session.path,
+        &new_key,
+        &mut session.database,
+        &mut session.entries,
+    );
+    if result.is_ok() {
+        session.db_key = new_key;
+    }
+
+    app.status = Some(match result {
+        Ok(()) => "master password changed".to_string(),
         Err(err) => format!("couldn't change password: {err:#}"),
     });
 
     app.changing_password = false;
     app.password_change_step = PasswordChangeStep::CurrentPassword;
-    app.current_password_buffer.clear();
-    app.new_password_buffer.clear();
-    app.new_password_confirm.clear();
+    clear_secret(&mut app.current_password_buffer);
+    clear_secret(&mut app.new_password_buffer);
+    clear_secret(&mut app.new_password_confirm);
 }
 
 fn start_import(app: &mut App) {
@@ -350,7 +370,7 @@ fn reset_import_state(app: &mut App) {
     app.importing_database = false;
     app.import_step = ImportStep::Path;
     app.import_path_buffer.clear();
-    app.import_kdbx_password_buffer.clear();
+    clear_secret(&mut app.import_kdbx_password_buffer);
     app.pending_import_path = None;
 }
 
@@ -415,7 +435,7 @@ fn confirm_import_path(app: &mut App) {
     match crate::import::detect_format(&path) {
         Ok(crate::import::ImportFormat::Kdbx) => {
             app.pending_import_path = Some(path);
-            app.import_kdbx_password_buffer.clear();
+            clear_secret(&mut app.import_kdbx_password_buffer);
             app.import_step = ImportStep::KdbxPassword;
             app.status = None;
         }
@@ -440,11 +460,14 @@ fn confirm_import_kdbx_password(app: &mut App) {
         return;
     };
 
-    match crate::import::import_kdbx(&path, &app.import_kdbx_password_buffer) {
+    let mut password = std::mem::take(&mut app.import_kdbx_password_buffer);
+    let result = crate::import::import_kdbx(&path, &password);
+    clear_secret(&mut password);
+
+    match result {
         Ok(entries) => finish_import(app, entries, &path),
         Err(err) => {
             app.status = Some(format!("{err:#}"));
-            app.import_kdbx_password_buffer.clear();
         }
     }
 }
@@ -452,19 +475,21 @@ fn confirm_import_kdbx_password(app: &mut App) {
 fn finish_import(app: &mut App, imported: Vec<Entry>, source: &Path) {
     let count = imported.len();
 
+    let Some(entries) = app.entries_mut() else {
+        app.status = Some("couldn't import: database is locked".to_string());
+        reset_import_state(app);
+        return;
+    };
+
     for mut entry in imported {
         entry.id = None;
-        app.entries.push(entry);
+        entries.push(entry);
     }
 
-    calculate_warnings(&mut app.entries);
+    calculate_warnings(entries);
     app.refresh_filter();
 
-    let (Some(path), Some(key), Some(db)) = (
-        app.config.default_database.clone(),
-        app.db_key.clone(),
-        app.kdbx.as_mut(),
-    ) else {
+    let Some(session) = app.active_session_mut() else {
         app.status = Some(format!(
             "imported {count} entries from {}, but couldn't save: database is locked",
             source.display()
@@ -473,10 +498,17 @@ fn finish_import(app: &mut App, imported: Vec<Entry>, source: &Path) {
         return;
     };
 
-    app.status = Some(match save_database(&path, &key, db, &mut app.entries) {
-        Ok(()) => format!("imported {count} entries from {}", source.display()),
-        Err(err) => format!("imported {count} entries, but failed to save: {err:#}"),
-    });
+    app.status = Some(
+        match save_database(
+            &session.path,
+            &session.db_key,
+            &mut session.database,
+            &mut session.entries,
+        ) {
+            Ok(()) => format!("imported {count} entries from {}", source.display()),
+            Err(err) => format!("imported {count} entries, but failed to save: {err:#}"),
+        },
+    );
 
     reset_import_state(app);
 }
@@ -580,20 +612,25 @@ fn do_export(app: &mut App) {
         }
     };
 
-    let count = app.entries.len();
+    let count = app.entries().len();
 
     let result = match format {
         crate::export::ExportFormat::Kdbx => {
-            let (Some(key), Some(db)) = (app.db_key.clone(), app.kdbx.as_mut()) else {
+            let Some(session) = app.active_session_mut() else {
                 app.status = Some("no unlocked database".to_string());
                 reset_export_state(app);
                 return;
             };
 
-            save_database(&path, &key, db, &mut app.entries)
+            save_database(
+                &path,
+                &session.db_key,
+                &mut session.database,
+                &mut session.entries,
+            )
         }
-        crate::export::ExportFormat::Csv => crate::export::export_csv(&path, &app.entries),
-        crate::export::ExportFormat::Json => crate::export::export_json(&path, &app.entries),
+        crate::export::ExportFormat::Csv => crate::export::export_csv(&path, app.entries()),
+        crate::export::ExportFormat::Json => crate::export::export_json(&path, app.entries()),
     };
 
     app.status = Some(match result {

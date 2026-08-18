@@ -1137,6 +1137,8 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
