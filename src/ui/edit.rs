@@ -144,7 +144,10 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     } else if notes.is_empty() {
         vec![Line::from(Span::styled("(empty)", placeholder))]
     } else {
-        notes.split('\n').map(|l| Line::from(Span::styled(l.to_string(), normal))).collect()
+        notes
+            .split('\n')
+            .map(|l| Line::from(Span::styled(l.to_string(), normal)))
+            .collect()
     };
 
     let notes_field = |label: &'static str, lines: Vec<Line<'static>>| -> ListItem<'static> {

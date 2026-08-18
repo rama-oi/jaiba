@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crossterm::event::KeyCode;
 
-use crate::app::{App, Screen};
+use crate::app::{App, Screen, UnlockedVault, clear_secret};
 use crate::config::save_config;
 use crate::db::{calculate_warnings, create_database, unlock_database};
 use crate::util::default_new_database_path;
@@ -45,10 +45,8 @@ pub fn handle_login_input(app: &mut App, key: KeyCode) {
 }
 
 pub fn database_missing(app: &App) -> bool {
-    match &app.config.default_database {
-        None => true,
-        Some(path) => !path.is_file(),
-    }
+    app.active_vault_config()
+        .is_none_or(|vault| !vault.path.is_file())
 }
 
 fn handle_missing_database_input(app: &mut App, key: KeyCode) {
@@ -66,16 +64,16 @@ fn handle_missing_database_input(app: &mut App, key: KeyCode) {
 fn start_create_database(app: &mut App) {
     app.creating_database = true;
     app.confirming_new_db_password = false;
-    app.password.clear();
-    app.new_db_confirm.clear();
+    clear_secret(&mut app.password);
+    clear_secret(&mut app.new_db_confirm);
     app.login_error = None;
 }
 
 fn cancel_create_database(app: &mut App) {
     app.creating_database = false;
     app.confirming_new_db_password = false;
-    app.password.clear();
-    app.new_db_confirm.clear();
+    clear_secret(&mut app.password);
+    clear_secret(&mut app.new_db_confirm);
     app.login_error = None;
 }
 
@@ -123,22 +121,30 @@ fn handle_create_database_input(app: &mut App, key: KeyCode) {
 fn finish_create_database(app: &mut App) {
     if app.new_db_confirm != app.password {
         app.login_error = Some("Passwords don't match".to_string());
-        app.new_db_confirm.clear();
+        clear_secret(&mut app.new_db_confirm);
         app.confirming_new_db_password = false;
         return;
     }
 
     let path = app
-        .config
-        .default_database
-        .clone()
+        .active_vault_config()
+        .map(|vault| vault.path.clone())
         .unwrap_or_else(default_new_database_path);
 
+    if app.active_vault_config().is_none() {
+        let vault = app.config.ensure_default_vault(path.clone());
+        app.active_vault_name = Some(vault.name.clone());
+    }
+
+    let Some(vault) = app.active_vault_config().cloned() else {
+        app.login_error = Some("No vault configured".to_string());
+        return;
+    };
+
     if path.is_file() {
-        app.config.default_database = Some(path.clone());
         let _ = save_config(&app.config);
 
-        app.new_db_confirm.clear();
+        clear_secret(&mut app.new_db_confirm);
         app.creating_database = false;
         app.confirming_new_db_password = false;
         app.login_error = Some(format!(
@@ -148,16 +154,22 @@ fn finish_create_database(app: &mut App) {
         return;
     }
 
-    match create_database(&path, &app.password, app.config.keyfile.as_deref()) {
+    let result = create_database(&path, &app.password, vault.keyfile.as_deref());
+
+    match result {
         Ok((db, key, entries)) => {
-            app.config.default_database = Some(path.clone());
             let save_result = save_config(&app.config);
 
-            app.kdbx = Some(db);
-            app.db_key = Some(key);
-            app.entries = entries;
-            app.password.clear();
-            app.new_db_confirm.clear();
+            app.unlock_vault(UnlockedVault {
+                name: vault.name,
+                path: path.clone(),
+                keyfile: vault.keyfile,
+                database: db,
+                db_key: key,
+                entries,
+            });
+            clear_secret(&mut app.password);
+            clear_secret(&mut app.new_db_confirm);
             app.creating_database = false;
             app.confirming_new_db_password = false;
             app.login_error = None;
@@ -173,33 +185,40 @@ fn finish_create_database(app: &mut App) {
 
         Err(err) => {
             app.login_error = Some(format!("Couldn't create database: {err:#}"));
-            app.password.clear();
-            app.new_db_confirm.clear();
+            clear_secret(&mut app.password);
+            clear_secret(&mut app.new_db_confirm);
             app.confirming_new_db_password = false;
         }
     }
 }
 
 fn attempt_unlock(app: &mut App) {
-    let Some(path) = app.config.default_database.clone() else {
-        app.login_error = Some("No default_database set in config.toml".to_string());
+    let Some(vault) = app.active_vault_config().cloned() else {
+        app.login_error = Some("No vault configured in config.toml".to_string());
         return;
     };
 
-    match unlock_database(&path, &app.password, app.config.keyfile.as_deref()) {
+    let mut password = std::mem::take(&mut app.password);
+    let result = unlock_database(&vault.path, &password, vault.keyfile.as_deref());
+    clear_secret(&mut password);
+
+    match result {
         Ok((db, key, mut entries)) => {
             calculate_warnings(&mut entries);
-            app.entries = entries;
-            app.kdbx = Some(db);
-            app.db_key = Some(key);
-            app.password.clear();
+            app.unlock_vault(UnlockedVault {
+                name: vault.name,
+                path: vault.path,
+                keyfile: vault.keyfile,
+                database: db,
+                db_key: key,
+                entries,
+            });
             app.login_error = None;
             app.last_activity = Instant::now();
             app.refresh_filter();
             app.screen = Screen::Index;
         }
         Err(err) => {
-            app.password.clear();
             app.login_error = Some(format!("{err}"));
         }
     }

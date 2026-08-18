@@ -20,12 +20,14 @@ const HELP_ITEMS: &[&str] = &[
     "[:t] cp_totp",
     "[:r] cp_url",
     "[:a] add_entry",
+    "[:v] vaults",
+    "[:l] lock",
     "[enter] expand_entry",
     "[:q] quit",
     "[:s] settings",
 ];
 
-fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
+fn masked_password(entry: &Entry, theme: &Theme) -> Line<'static> {
     let normal = Style::new().fg(theme.text);
     let warning = Style::new().fg(theme.warning);
 
@@ -41,11 +43,11 @@ fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
     Line::from(spans)
 }
 
-fn masked_user<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
+fn masked_user(entry: &Entry, theme: &Theme) -> Line<'static> {
     let normal = Style::new().fg(theme.text);
     let warning = Style::new().fg(theme.warning);
 
-    let mut spans = vec![Span::styled(entry.user.as_str(), normal)];
+    let mut spans = vec![Span::styled(entry.user.clone(), normal)];
 
     if entry.duplicate_user_count > 1 {
         spans.push(Span::styled(
@@ -113,18 +115,22 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(help, vertical[2]);
 
-    let rows = app.filtered.iter().map(|&i| {
-        let entry = &app.entries[i];
-        let password = masked_password(entry, &app.theme);
-        let user = masked_user(entry, &app.theme);
+    let rows = app
+        .filtered
+        .iter()
+        .map(|&i| {
+            let entry = &app.entries()[i];
+            let password = masked_password(entry, &app.theme);
+            let user = masked_user(entry, &app.theme);
 
-        Row::new([
-            Cell::from(entry.name.as_str()),
-            Cell::from(user),
-            Cell::from(password),
-            Cell::from(entry.date_last_modify.as_str()),
-        ])
-    });
+            Row::new([
+                Cell::from(entry.name.clone()),
+                Cell::from(user),
+                Cell::from(password),
+                Cell::from(entry.date_last_modify.clone()),
+            ])
+        })
+        .collect::<Vec<_>>();
 
     let column_widths = [
         Constraint::Percentage(30),
@@ -168,7 +174,11 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             Block::default()
                 .borders(Borders::ALL)
                 .padding(Padding::horizontal(1))
-                .border_style(Style::default().fg(app.theme.border)),
+                .border_style(Style::default().fg(app.theme.border))
+                .title(format!(
+                    " {} ",
+                    app.active_vault_name.as_deref().unwrap_or("no vault")
+                )),
         );
 
     frame.set_cursor_position((

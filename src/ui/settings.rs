@@ -84,16 +84,13 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
     };
 
     let database_value = app
-        .config
-        .default_database
-        .as_ref()
-        .map(|p| p.display().to_string())
+        .active_vault_config()
+        .map(|vault| vault.path.display().to_string())
         .unwrap_or_default();
     let keyfile_value = app
-        .config
-        .keyfile
-        .as_ref()
-        .map(|p| p.display().to_string())
+        .active_vault_config()
+        .and_then(|vault| vault.keyfile.as_ref())
+        .map(|path| path.display().to_string())
         .unwrap_or_default();
     let auto_lock_value = app.config.auto_lock.as_secs().to_string();
     let clipboard_timeout_value = app.config.clipboard_timeout.as_secs().to_string();
@@ -112,7 +109,7 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
 
     let items = vec![
         field(
-            "Default database",
+            "Active vault database",
             render_value(DATABASE_ROW, database_value),
         ),
         field(
@@ -339,7 +336,9 @@ fn draw_import(frame: &mut Frame, app: &mut App) {
     };
 
     let default_hint = match app.import_step {
-        crate::app::ImportStep::Path => "only name, user, password, url, totp and notes are imported",
+        crate::app::ImportStep::Path => {
+            "only name, user, password, url, totp and notes are imported"
+        }
         crate::app::ImportStep::KdbxPassword => "that file's own master password, not this vault's",
     };
     let hint_text = app

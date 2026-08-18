@@ -45,22 +45,30 @@ pub fn draw_login(frame: &mut Frame, app: &mut App) {
         Static(&'a str),
     }
 
+    let vault_name = app.active_vault_name.as_deref().unwrap_or("default");
+
     let (title, content) = if app.creating_database {
         if app.confirming_new_db_password {
             (
-                " Confirm master password ",
+                " Confirm master password ".to_string(),
                 BoxContent::Masked(&app.new_db_confirm),
             )
         } else {
-            (" New master password ", BoxContent::Masked(&app.password))
+            (
+                " New master password ".to_string(),
+                BoxContent::Masked(&app.password),
+            )
         }
     } else if missing {
         (
-            " No database found ",
+            " No database found ".to_string(),
             BoxContent::Static("Press [n] to create a new database"),
         )
     } else {
-        ("", BoxContent::Masked(&app.password))
+        (
+            format!(" {vault_name} — master password "),
+            BoxContent::Masked(&app.password),
+        )
     };
 
     let input_text = match content {
@@ -199,9 +207,8 @@ pub fn draw_login(frame: &mut Frame, app: &mut App) {
         frame.render_widget(error_text, error_area);
     } else if app.creating_database {
         let path = app
-            .config
-            .default_database
-            .clone()
+            .active_vault_config()
+            .map(|vault| vault.path.clone())
             .unwrap_or_else(default_new_database_path);
 
         let hint_area = Rect {
