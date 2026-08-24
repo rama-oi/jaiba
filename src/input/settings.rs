@@ -606,7 +606,7 @@ fn do_export(app: &mut App) {
 
 fn start_choosing_theme(app: &mut App) {
     if app.available_themes.is_empty() {
-        app.status = Some("no themes found in ~/.config/jaiba/themes".to_string());
+        app.status = Some("no themes found in ~/.config/rama/themes".to_string());
         return;
     }
 

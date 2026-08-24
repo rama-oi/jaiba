@@ -37,7 +37,7 @@ struct ConfigFile {
 }
 
 pub fn load_config() -> anyhow::Result<Config> {
-    let path = expand_tilde("~/.config/jaiba/config.toml");
+    let path = expand_tilde("~/.config/rama/jaiba_config.toml");
     let text =
         fs::read_to_string(&path).with_context(|| format!("couldn't read {}", path.display()))?;
     parse_config(&text)
@@ -73,7 +73,7 @@ struct ConfigFileOut<'a> {
 }
 
 pub fn save_config(config: &Config) -> anyhow::Result<()> {
-    let path = expand_tilde("~/.config/jaiba/config.toml");
+    let path = expand_tilde("~/.config/rama/jaiba_config.toml");
 
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)

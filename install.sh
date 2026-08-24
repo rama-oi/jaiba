@@ -82,5 +82,5 @@ esac
 
 echo ""
 echo "Run 'jaiba' to get started. On first launch it creates:"
-echo "  ~/.config/jaiba/config.toml"
-echo "  ~/.config/jaiba/themes/ (seeded with the built-in themes)"
+echo "  ~/.config/rama/jaiba_config.toml"
+echo "  ~/.config/rama/themes/ (seeded with the built-in themes)"

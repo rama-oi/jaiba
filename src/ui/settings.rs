@@ -100,7 +100,7 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
 
     let theme_value = if app.available_themes.is_empty() {
         Line::from(Span::styled(
-            "no themes found in ~/.config/jaiba/themes",
+            "no themes found in ~/.config/rama/themes",
             warning,
         ))
     } else {
