@@ -141,12 +141,12 @@ const DEFAULT_THEMES: &[(&str, &str)] = &[
     ),
 ];
 
-/// Makes sure `~/.config/jaiba/themes/` exists and has the built-in themes
+/// Makes sure `~/.config/rama/themes/` exists and has the built-in themes
 /// in it. Only ever *adds* files that are missing — never overwrites a file
 /// that's already there, so a user's edited or custom theme is never
 /// clobbered. Safe to call on every startup.
 pub fn ensure_default_themes() -> anyhow::Result<()> {
-    let dir = expand_tilde("~/.config/jaiba/themes");
+    let dir = expand_tilde("~/.config/rama/themes");
 
     fs::create_dir_all(&dir).with_context(|| format!("couldn't create {}", dir.display()))?;
 
@@ -163,7 +163,7 @@ pub fn ensure_default_themes() -> anyhow::Result<()> {
 }
 
 pub fn load_theme(name: Option<&str>) -> anyhow::Result<Theme> {
-    let name = name.ok_or_else(|| anyhow::anyhow!("no theme set in config.toml"))?;
+    let name = name.ok_or_else(|| anyhow::anyhow!("no theme set in jaiba_config.toml"))?;
 
     let config = find_theme(name)?;
     Theme::try_from(config)
@@ -184,7 +184,7 @@ fn find_theme(name: &str) -> anyhow::Result<ThemeConfig> {
 }
 
 fn read_theme_configs() -> anyhow::Result<Vec<ThemeConfig>> {
-    let dir = expand_tilde("~/.config/jaiba/themes");
+    let dir = expand_tilde("~/.config/rama/themes");
 
     let entries = fs::read_dir(&dir).with_context(|| format!("couldn't read {}", dir.display()))?;
 

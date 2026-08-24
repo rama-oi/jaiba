@@ -1,6 +1,6 @@
 # Jaiba
 
-![Login Screen](https://raw.githubusercontent.com/pomboverso/jaiba/HEAD/assets/screenshots/1.png)
+![Login Screen](https://raw.githubusercontent.com/pomboverso/jaiba/HEAD/assets/screenshots/0.png)
 
 Jaiba is a terminal password manager built on top of the [KeePass](https://keepass.info/)
 (`.kdbx`) file format, so your vault stays compatible with the wider KeePass ecosystem.
@@ -69,21 +69,15 @@ keyfile = "~/Documents/passwords.keyx"
 | `↑` / `↓` | Move selection                |
 | type      | Filter entries by name / user |
 | `Enter`   | Open the selected entry       |
-| `:`       | Enter command mode            |
+| `Ctrl+U`  | Copy username                 |
+| `Ctrl+P`  | Copy password                 |
+| `Ctrl+T`  | Copy current TOTP code        |
+| `Ctrl+R`  | Copy URL                      |
+| `Ctrl+A`  | Add a new entry               |
+| `Ctrl+S`  | Open Settings                 |
+| `Ctrl+Q`  | Quit                          |
 
-### Commands (after pressing `:`)
-
-| Command | Action                 |
-| ------- | ---------------------- |
-| `:u`    | Copy username          |
-| `:p`    | Copy password          |
-| `:t`    | Copy current TOTP code |
-| `:r`    | Copy URL               |
-| `:a`    | Add a new entry        |
-| `:s`    | Open Settings          |
-| `:q`    | Quit                   |
-
-Commands are case-insensitive, so `:S` works the same as `:s`.
+Shortcuts are case-insensitive, so `Ctrl+Q` works the same as `Ctrl+q`.
 
 ### Settings screen
 
@@ -97,11 +91,11 @@ From Settings you can change the default vault path, optional keyfile path, auto
 
 ## Configuration
 
-Jaiba reads its config from `~/.config/jaiba/config.toml`:
+Jaiba reads its config from `~/.config/rama/jaiba_config.toml`:
 
 ```toml
-default_database = "~/.local/share/jaiba/default.kdbx"
-keyfile = "~/.local/share/jaiba/default.keyx" # optional; omit for password-only vaults
+default_database = "~/.local/share/rama/default.kdbx"
+keyfile = "~/.local/share/rama/default.keyx" # optional; omit for password-only vaults
 auto_lock = 300           # seconds of inactivity before locking
 clipboard_timeout = 15    # seconds before a copied value is cleared
 theme = "catppuccin-mocha"
@@ -111,7 +105,7 @@ All fields are optional; missing ones fall back to sane defaults. In particular,
 
 ## Themes
 
-Drop `.toml` theme files into `~/.config/jaiba/themes/`. Each one looks like:
+Drop `.toml` theme files into `~/.config/rama/themes/`. Each one looks like:
 
 ```toml
 // catppuccin_mocha.toml
@@ -135,7 +129,7 @@ shell_light  = "#789488"
 shell_shadow = "#3a524a"
 ```
 
-Pick one up from Settings → Theme, or set the `theme` key in `config.toml` directly.
+Pick one up from Settings → Theme, or set the `theme` key in `jaiba_config.toml` directly.
 
 ## Security notes
 

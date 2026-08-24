@@ -7,6 +7,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
 };
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::App;
 use crate::db::current_totp_code;
@@ -21,6 +22,54 @@ const NAV_HELP_ITEMS: &[&str] = &[
 ];
 
 const FIELD_HELP_ITEMS: &[&str] = &["[enter] save field", "[esc] cancel"];
+
+fn wrap_notes(notes: &str, width: usize) -> Vec<String> {
+    let width = width.max(1);
+    let mut wrapped = Vec::new();
+
+    for line in notes.split('\n') {
+        let line = line.strip_suffix('\r').unwrap_or(line);
+        let mut current = String::new();
+
+        for word in line.split_whitespace() {
+            let separator_width = usize::from(!current.is_empty());
+
+            if UnicodeWidthStr::width(current.as_str())
+                + separator_width
+                + UnicodeWidthStr::width(word)
+                <= width
+            {
+                if !current.is_empty() {
+                    current.push(' ');
+                }
+                current.push_str(word);
+                continue;
+            }
+
+            if !current.is_empty() {
+                wrapped.push(std::mem::take(&mut current));
+            }
+
+            for character in word.chars() {
+                let character_width = UnicodeWidthChar::width(character).unwrap_or(0);
+                if !current.is_empty()
+                    && UnicodeWidthStr::width(current.as_str()) + character_width > width
+                {
+                    wrapped.push(std::mem::take(&mut current));
+                }
+                current.push(character);
+            }
+        }
+
+        if !current.is_empty() {
+            wrapped.push(current);
+        } else if line.trim().is_empty() {
+            wrapped.push(String::new());
+        }
+    }
+
+    wrapped
+}
 
 pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
@@ -136,6 +185,7 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
         ])
     };
 
+    let notes_width = vertical[0].width.saturating_sub(6) as usize;
     let notes_lines: Vec<Line<'static>> = if editing_field && selected == 5 {
         vec![Line::from(vec![
             Span::styled(field_buffer.clone(), editing_style),
@@ -144,7 +194,10 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     } else if notes.is_empty() {
         vec![Line::from(Span::styled("(empty)", placeholder))]
     } else {
-        notes.split('\n').map(|l| Line::from(Span::styled(l.to_string(), normal))).collect()
+        wrap_notes(&notes, notes_width)
+            .into_iter()
+            .map(|line| Line::from(Span::styled(line, normal)))
+            .collect()
     };
 
     let notes_field = |label: &'static str, lines: Vec<Line<'static>>| -> ListItem<'static> {
@@ -219,4 +272,27 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     };
 
     frame.render_widget(help, vertical[1]);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wrap_notes;
+
+    #[test]
+    fn wraps_multiline_notes_to_the_available_width() {
+        assert_eq!(
+            wrap_notes("first line\nsecond line with more text", 12),
+            ["first line", "second line", "with more", "text"]
+        );
+    }
+
+    #[test]
+    fn wraps_long_words_instead_of_clipping_them() {
+        assert_eq!(wrap_notes("averylongword", 5), ["avery", "longw", "ord"]);
+    }
+
+    #[test]
+    fn preserves_blank_lines_in_notes() {
+        assert_eq!(wrap_notes("first\n\nthird", 20), ["first", "", "third"]);
+    }
 }

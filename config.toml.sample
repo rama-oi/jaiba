@@ -1,9 +1,9 @@
 # Existing KDBX database to open.
-default_database = "~/.local/share/jaiba/default.kdbx"
+default_database = "~/.local/share/rama/default.kdbx"
 
 # Optional KeePass keyfile. Leave this unset for password-only databases.
 # The master password is always still required.
-keyfile = "~/.local/share/jaiba/default.keyx"
+# keyfile = "~/.local/share/rama/default.keyx"
 
 # Seconds of inactivity before Jaiba locks the database.
 auto_lock = 300
@@ -11,5 +11,5 @@ auto_lock = 300
 # Seconds before a value copied by Jaiba is cleared from the clipboard.
 clipboard_timeout = 15
 
-# Name of a theme installed in ~/.config/jaiba/themes/.
-theme = "catppuccin-mocha"
+# Name of a theme installed in ~/.config/rama/themes/.
+theme = "Catppuccin Mocha"

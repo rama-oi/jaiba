@@ -15,14 +15,14 @@ use crate::util::wrap_help_items;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
-    "[:u] cp_user",
-    "[:p] cp_password",
-    "[:t] cp_totp",
-    "[:r] cp_url",
-    "[:a] add_entry",
+    "[^u] cp_user",
+    "[^p] cp_password",
+    "[^t] cp_totp",
+    "[^r] cp_url",
+    "[^a] add_entry",
     "[enter] expand_entry",
-    "[:q] quit",
-    "[:s] settings",
+    "[^q] quit",
+    "[^s] settings",
 ];
 
 fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
@@ -153,14 +153,8 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     app.max_len = query_area.width.saturating_sub(4) as usize;
 
-    let (input_text, input_style) = if app.command_mode {
-        (
-            format!(":{}", app.command_buffer),
-            Style::default().fg(app.theme.warning),
-        )
-    } else {
-        (app.query.clone(), Style::default().fg(app.theme.text))
-    };
+    let input_text = app.query.clone();
+    let input_style = Style::default().fg(app.theme.text);
 
     let input = Paragraph::new(input_text.as_str())
         .style(input_style)

@@ -182,7 +182,7 @@ fn finish_create_database(app: &mut App) {
 
 fn attempt_unlock(app: &mut App) {
     let Some(path) = app.config.default_database.clone() else {
-        app.login_error = Some("No default_database set in config.toml".to_string());
+        app.login_error = Some("No default_database set in jaiba_config.toml".to_string());
         return;
     };
 

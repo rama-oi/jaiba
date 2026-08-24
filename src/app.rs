@@ -103,9 +103,6 @@ pub struct App {
 
     pub last_activity: Instant,
 
-    pub command_mode: bool,
-    pub command_buffer: String,
-
     pub status: Option<String>,
 
     pub clipboard: Option<Clipboard>,
@@ -266,8 +263,6 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         creating_database: false,
         confirming_new_db_password: false,
         new_db_confirm: String::new(),
-        command_mode: false,
-        command_buffer: String::new(),
         status: None,
         clipboard: Clipboard::new().ok(),
         clipboard_timer: None,
@@ -297,7 +292,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
 
                 match app.screen {
                     Screen::Login => handle_login_input(&mut app, key.code),
-                    Screen::Index => handle_index_input(&mut app, key.code),
+                    Screen::Index => handle_index_input(&mut app, key),
                     Screen::Edit => handle_edit_input(&mut app, key.code),
                     Screen::Settings => handle_settings_input(&mut app, key.code),
                 }

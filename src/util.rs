@@ -27,7 +27,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
 }
 
 pub fn default_new_database_path() -> PathBuf {
-    expand_tilde("~/.local/share/jaiba/default.kdbx")
+    expand_tilde("~/.local/share/rama/default.kdbx")
 }
 
 pub fn wrap_help_items(items: &[&str], width: u16) -> Vec<String> {

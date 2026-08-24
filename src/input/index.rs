@@ -1,21 +1,18 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
-use crate::input::command::{handle_command_input, preview_entry};
+use crate::input::command::{handle_shortcut, preview_entry};
 
-pub fn handle_index_input(app: &mut App, key: KeyCode) {
-    if app.command_mode {
-        handle_command_input(app, key);
+pub fn handle_index_input(app: &mut App, key: KeyEvent) {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        if let KeyCode::Char(c) = key.code {
+            app.status = None;
+            handle_shortcut(app, c.to_ascii_lowercase());
+        }
         return;
     }
 
-    match key {
-        KeyCode::Char(':') => {
-            app.status = None;
-            app.command_mode = true;
-            app.command_buffer.clear();
-        }
-
+    match key.code {
         KeyCode::Char(c) => {
             app.status = None;
 
