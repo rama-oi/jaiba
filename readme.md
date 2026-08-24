@@ -69,21 +69,15 @@ keyfile = "~/Documents/passwords.keyx"
 | `↑` / `↓` | Move selection                |
 | type      | Filter entries by name / user |
 | `Enter`   | Open the selected entry       |
-| `:`       | Enter command mode            |
+| `Ctrl+U`  | Copy username                 |
+| `Ctrl+P`  | Copy password                 |
+| `Ctrl+T`  | Copy current TOTP code        |
+| `Ctrl+R`  | Copy URL                      |
+| `Ctrl+A`  | Add a new entry               |
+| `Ctrl+S`  | Open Settings                 |
+| `Ctrl+Q`  | Quit                          |
 
-### Commands (after pressing `:`)
-
-| Command | Action                 |
-| ------- | ---------------------- |
-| `:u`    | Copy username          |
-| `:p`    | Copy password          |
-| `:t`    | Copy current TOTP code |
-| `:r`    | Copy URL               |
-| `:a`    | Add a new entry        |
-| `:s`    | Open Settings          |
-| `:q`    | Quit                   |
-
-Commands are case-insensitive, so `:S` works the same as `:s`.
+Shortcuts are case-insensitive, so `Ctrl+Q` works the same as `Ctrl+q`.
 
 ### Settings screen
 
