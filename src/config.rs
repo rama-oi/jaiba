@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::expand_tilde;
 
+const SAMPLE_CONFIG: &str = include_str!("../config.toml.sample");
+
 pub struct Config {
     pub default_database: Option<PathBuf>,
     pub keyfile: Option<PathBuf>,
@@ -38,6 +40,17 @@ struct ConfigFile {
 
 pub fn load_config() -> anyhow::Result<Config> {
     let path = expand_tilde("~/.config/rama/jaiba_config.toml");
+
+    if !path.is_file() {
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)
+                .with_context(|| format!("couldn't create {}", parent.display()))?;
+        }
+
+        fs::write(&path, SAMPLE_CONFIG)
+            .with_context(|| format!("couldn't write {}", path.display()))?;
+    }
+
     let text =
         fs::read_to_string(&path).with_context(|| format!("couldn't read {}", path.display()))?;
     parse_config(&text)

@@ -2,6 +2,8 @@ use crate::app::App;
 use crate::clipboard::{cp_password, cp_totp, cp_url, cp_user};
 use crate::db::Entry;
 
+pub fn handle_shortcut(app: &mut App, c: char) {
+    match c {
         'u' => cp_user(app),
         'p' => cp_password(app),
         't' => cp_totp(app),
