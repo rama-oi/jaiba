@@ -12,4 +12,4 @@ auto_lock = 300
 clipboard_timeout = 15
 
 # Name of a theme installed in ~/.config/rama/themes/.
-theme = "Catppuccin Mocha"
+theme = "catppuccin-mocha"

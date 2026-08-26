@@ -111,16 +111,12 @@ pub fn draw_login(frame: &mut Frame, app: &mut App) {
             Span::styled("█  █", claws_light_style),
             Span::styled("          ██    ██ ", claws_style),
         ]),
-        
-        // --------------here
         Line::from(vec![
             Span::styled("██", claws_light_style),
             Span::styled("█     ██         ", claws_style),
             Span::styled("█  █", claws_style),
             Span::styled("         ██     ███", claws_style),
         ]),
-
-
         Line::from(vec![
             Span::styled("██", claws_light_style),
             Span::styled("██     ██  ", claws_style),

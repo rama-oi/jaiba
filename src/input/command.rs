@@ -9,7 +9,6 @@ pub fn handle_shortcut(app: &mut App, c: char) {
         't' => cp_totp(app),
         'r' => cp_url(app),
         'a' => add_entry(app),
-        'q' => app.should_quit = true,
         's' => open_settings(app),
         _ => {}
     }

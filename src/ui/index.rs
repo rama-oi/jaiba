@@ -21,8 +21,8 @@ const HELP_ITEMS: &[&str] = &[
     "[^r] cp_url",
     "[^a] add_entry",
     "[enter] expand_entry",
-    "[^q] quit",
     "[^s] settings",
+    "[esc] quit",
 ];
 
 fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {

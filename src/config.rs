@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::util::expand_tilde;
 
-const SAMPLE_CONFIG: &str = include_str!("../config.toml.sample");
+const SAMPLE_CONFIG: &str = include_str!("../jaiba_config.toml.sample");
 
 pub struct Config {
     pub default_database: Option<PathBuf>,

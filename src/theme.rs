@@ -33,7 +33,6 @@ impl Default for Theme {
             text: Color::Rgb(205, 214, 244),
             warning: Color::Rgb(249, 226, 175),
             error: Color::Rgb(243, 139, 168),
-            // success: Color::Rgb(166, 227, 161),
             border: Color::Rgb(69, 71, 90),
             header: Color::Rgb(147, 153, 178),
             accent: Color::Rgb(203, 166, 247),
@@ -65,7 +64,6 @@ pub struct ThemeColors {
     pub accent: String,
     pub warning: String,
     pub error: String,
-    // pub success: String,
     pub selection_fg: String,
     pub selection_bg: String,
 
@@ -89,7 +87,6 @@ impl TryFrom<ThemeConfig> for Theme {
             accent: parse_hex(&cfg.colors.accent)?,
             warning: parse_hex(&cfg.colors.warning)?,
             error: parse_hex(&cfg.colors.error)?,
-            // success: parse_hex(&cfg.colors.success)?,
             selection_fg: parse_hex(&cfg.colors.selection_fg)?,
             selection_bg: parse_hex(&cfg.colors.selection_bg)?,
 
@@ -141,10 +138,6 @@ const DEFAULT_THEMES: &[(&str, &str)] = &[
     ),
 ];
 
-/// Makes sure `~/.config/rama/themes/` exists and has the built-in themes
-/// in it. Only ever *adds* files that are missing — never overwrites a file
-/// that's already there, so a user's edited or custom theme is never
-/// clobbered. Safe to call on every startup.
 pub fn ensure_default_themes() -> anyhow::Result<()> {
     let dir = expand_tilde("~/.config/rama/themes");
 
@@ -179,7 +172,10 @@ pub fn list_theme_names() -> anyhow::Result<Vec<String>> {
 fn find_theme(name: &str) -> anyhow::Result<ThemeConfig> {
     read_theme_configs()?
         .into_iter()
-        .find(|config| config.name.eq_ignore_ascii_case(name))
+        .find(|config| {
+            config.name.eq_ignore_ascii_case(name)
+                || config.name.replace(' ', "-").eq_ignore_ascii_case(name)
+        })
         .ok_or_else(|| anyhow::anyhow!("no theme named \"{name}\" found"))
 }
 
