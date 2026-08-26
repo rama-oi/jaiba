@@ -12,13 +12,11 @@ mod util;
 use std::io;
 
 fn main() -> io::Result<()> {
-    if handle_cli_flags() {
-        return Ok(());
-    }
+    let slim_mode = handle_cli_flags();
 
     let mut terminal = ratatui::init();
 
-    app::run(&mut terminal)?;
+    app::run(&mut terminal, slim_mode)?;
 
     ratatui::restore();
 
@@ -33,13 +31,18 @@ fn handle_cli_flags() -> bool {
         .any(|a| a == "--version" || a == "-V" || a == "-v")
     {
         println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-        return true;
+        std::process::exit(0);
     }
 
-    if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!("A terminal password manager built on the KeePass (.kdbx) file format");
-        return true;
+    if args.iter().any(|a| a == "--help" || a == "-H" || a == "-h") {
+        println!(
+            "{} {}\n{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_DESCRIPTION")
+        );
+        std::process::exit(0);
     }
 
-    false
+    args.iter().any(|a| a == "--slim")
 }
