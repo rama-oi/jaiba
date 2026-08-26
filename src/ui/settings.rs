@@ -10,11 +10,53 @@ use crate::app::App;
 use crate::input::settings::{AUTO_LOCK_ROW, CLIPBOARD_TIMEOUT_ROW, DATABASE_ROW, KEYFILE_ROW};
 use crate::util::wrap_help_items;
 
-const NAV_HELP_ITEMS: &[&str] = &["[↑↓] navigate", "[enter] edit / choose theme", "[esc] back"];
-const FIELD_HELP_ITEMS: &[&str] = &["[enter] save", "[esc] cancel"];
-const THEME_PICKER_HELP_ITEMS: &[&str] = &["[↑↓] navigate", "[enter] apply", "[esc] cancel"];
-const CHANGE_PASSWORD_HELP_ITEMS: &[&str] = &["[enter] confirm", "[esc] cancel"];
-const EXPORT_HELP_ITEMS: &[&str] = &["[enter] continue", "[esc] cancel"];
+fn nav_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[↑↓]", "[enter]", "[esc]"]
+    } else {
+        &["[↑↓] navigate", "[enter] edit / choose theme", "[esc] back"]
+    }
+}
+
+fn field_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[enter]", "[esc]"]
+    } else {
+        &["[enter] save", "[esc] cancel"]
+    }
+}
+
+fn theme_picker_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[↑↓]", "[enter]", "[esc]"]
+    } else {
+        &["[↑↓] navigate", "[enter] apply", "[esc] cancel"]
+    }
+}
+
+fn change_password_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[enter]", "[esc]"]
+    } else {
+        &["[enter] confirm", "[esc] cancel"]
+    }
+}
+
+fn export_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[enter]", "[esc]"]
+    } else {
+        &["[enter] continue", "[esc] cancel"]
+    }
+}
+
+fn import_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[enter]", "[esc]"]
+    } else {
+        &["[enter] continue", "[esc] cancel"]
+    }
+}
 
 pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     if app.exporting_database {
@@ -38,9 +80,9 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
     let selected = app.settings_state.selected().unwrap_or(0);
 
     let help_items = if editing_field {
-        FIELD_HELP_ITEMS
+        field_help_items(app.slim_mode)
     } else {
-        NAV_HELP_ITEMS
+        nav_help_items(app.slim_mode)
     };
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(help_items, help_width);
@@ -172,7 +214,7 @@ fn draw_change_password(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(CHANGE_PASSWORD_HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(change_password_help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()
@@ -268,13 +310,11 @@ fn draw_change_password(frame: &mut Frame, app: &mut App) {
     frame.render_widget(Paragraph::new(help_text).style(accent), vertical[3]);
 }
 
-const IMPORT_HELP_ITEMS: &[&str] = &["[enter] continue", "[esc] cancel"];
-
 fn draw_import(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(IMPORT_HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(import_help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()
@@ -377,7 +417,7 @@ fn draw_export(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(EXPORT_HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(export_help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()
@@ -489,7 +529,7 @@ fn draw_theme_picker(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(THEME_PICKER_HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(export_help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()

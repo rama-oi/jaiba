@@ -1,3 +1,7 @@
+## 7
+
+- Several adjustments for slim mode
+
 ## 6
 
 - Change quit command from `^q` to `esc` on index and login screen

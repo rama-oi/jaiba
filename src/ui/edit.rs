@@ -13,15 +13,27 @@ use crate::app::App;
 use crate::db::current_totp_code;
 use crate::util::wrap_help_items;
 
-const NAV_HELP_ITEMS: &[&str] = &[
-    "[↑↓] navigate",
-    "[enter] edit field",
-    "[v] toggle visibility",
-    "[d] delete entry",
-    "[esc] close",
-];
+fn nav_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[↑↓]", "[enter]", "[v]", "[d]", "[esc]"]
+    } else {
+        &[
+            "[↑↓] navigate",
+            "[enter] edit field",
+            "[v] toggle visibility",
+            "[d] delete entry",
+            "[esc] close",
+        ]
+    }
+}
 
-const FIELD_HELP_ITEMS: &[&str] = &["[enter] save field", "[esc] cancel"];
+fn field_help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &["[enter]", "[esc]"]
+    } else {
+        &["[enter] save field", "[esc] cancel"]
+    }
+}
 
 fn wrap_notes(notes: &str, width: usize) -> Vec<String> {
     let width = width.max(1);
@@ -112,9 +124,9 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     let border_style = Style::new().fg(theme.border);
 
     let help_items = if editing_field {
-        FIELD_HELP_ITEMS
+        field_help_items(app.slim_mode)
     } else {
-        NAV_HELP_ITEMS
+        nav_help_items(app.slim_mode)
     };
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(help_items, help_width);
