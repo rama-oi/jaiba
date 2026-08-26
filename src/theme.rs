@@ -178,6 +178,10 @@ fn find_theme(name: &str) -> anyhow::Result<ThemeConfig> {
         .ok_or_else(|| anyhow::anyhow!("no theme named \"{name}\" found"))
 }
 
+pub fn slugify(name: &str) -> String {
+    name.trim()
+        .chars()
+        .collect::<String>()
         .split_whitespace()
         .collect::<Vec<_>>()
         .join("-")

@@ -57,6 +57,10 @@ fn masked_user<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
     Line::from(spans)
 }
 
+fn slim_row<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
+    let normal = Style::new().fg(theme.text);
+    let warning = Style::new().fg(theme.warning);
+
     let mut spans = vec![Span::styled(format!("  {}", entry.name), normal)];
 
     if entry.duplicate_user_count > 1 {
