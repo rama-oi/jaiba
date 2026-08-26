@@ -57,6 +57,25 @@ fn masked_user<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
     Line::from(spans)
 }
 
+    let mut spans = vec![Span::styled(format!("  {}", entry.name), normal)];
+
+    if entry.duplicate_user_count > 1 {
+        spans.push(Span::styled(
+            format!(" u[{}]", entry.duplicate_user_count),
+            warning,
+        ));
+    }
+
+    if entry.password_reuse_count > 1 {
+        spans.push(Span::styled(
+            format!(" p[{}]", entry.password_reuse_count),
+            warning,
+        ));
+    }
+
+    Line::from(spans)
+}
+
 pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
@@ -115,10 +134,10 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         let user = masked_user(entry, &app.theme);
 
         if app.slim_mode {
-            Row::new([Cell::from(format!("  {}", entry.name))])
+            Row::new([Cell::from(slim_row(entry, &app.theme))])
         } else {
             Row::new([
-                Cell::from(entry.name.as_str()),
+                Cell::from(format!("  {}", entry.name)),
                 Cell::from(user),
                 Cell::from(password),
                 Cell::from(entry.date_last_modify.as_str()),
@@ -149,7 +168,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     if !app.slim_mode {
         table_index = table_index.header(
-            Row::new(["Name", "User", "Password", "Last Modify"])
+            Row::new(["  Name", "User", "Password", "Last Modify"])
                 .style(Style::new().bold().fg(app.theme.header))
                 .bottom_margin(1),
         );

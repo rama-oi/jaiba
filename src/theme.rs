@@ -170,13 +170,39 @@ pub fn list_theme_names() -> anyhow::Result<Vec<String>> {
 }
 
 fn find_theme(name: &str) -> anyhow::Result<ThemeConfig> {
+    let target = slugify(name);
+
     read_theme_configs()?
         .into_iter()
-        .find(|config| {
-            config.name.eq_ignore_ascii_case(name)
-                || config.name.replace(' ', "-").eq_ignore_ascii_case(name)
-        })
+        .find(|config| slugify(&config.name) == target)
         .ok_or_else(|| anyhow::anyhow!("no theme named \"{name}\" found"))
+}
+
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-")
+        .to_lowercase()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::slugify;
+
+    #[test]
+    fn slugifies_simple_names() {
+        assert_eq!(slugify("Catppuccin Mocha"), "catppuccin-mocha");
+        assert_eq!(slugify("Dracula"), "dracula");
+    }
+
+    #[test]
+    fn slugify_collapses_whitespace() {
+        assert_eq!(slugify("  Tokyo   Night  "), "tokyo-night");
+    }
+
+    #[test]
+    fn slugify_is_idempotent() {
+        assert_eq!(slugify("catppuccin-mocha"), "catppuccin-mocha");
+    }
 }
 
 fn read_theme_configs() -> anyhow::Result<Vec<ThemeConfig>> {

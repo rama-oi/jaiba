@@ -610,11 +610,15 @@ fn start_choosing_theme(app: &mut App) {
         return;
     }
 
-    let current = app.config.theme.as_deref();
+    let current = app.config.theme.as_deref().map(crate::theme::slugify);
     let start = app
         .available_themes
         .iter()
-        .position(|name| current.is_some_and(|c| c.eq_ignore_ascii_case(name)))
+        .position(|name| {
+            current
+                .as_deref()
+                .is_some_and(|c| c == crate::theme::slugify(name))
+        })
         .unwrap_or(0);
 
     app.theme_state.select(Some(start));
@@ -677,7 +681,7 @@ fn apply_selected_theme(app: &mut App) {
     match load_theme(Some(&name)) {
         Ok(theme) => {
             app.theme = theme;
-            app.config.theme = Some(name.clone());
+            app.config.theme = Some(crate::theme::slugify(&name));
 
             app.status = Some(match save_config(&app.config) {
                 Ok(()) => format!("theme set to {name}"),

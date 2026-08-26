@@ -105,7 +105,7 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
         ))
     } else {
         match app.config.theme.as_deref() {
-            Some(name) => Line::from(Span::styled(name.to_string(), normal)),
+            Some(name) => Line::from(Span::styled(crate::theme::slugify(name), normal)),
             None => Line::from(Span::styled("(not set)", placeholder)),
         }
     };
@@ -150,8 +150,7 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
                 .border_style(border_style)
                 .title(" Settings "),
         )
-        .highlight_style(editing_style.bold())
-        .highlight_symbol("→ ");
+        .highlight_style(editing_style.bold());
 
     frame.render_stateful_widget(list, vertical[0], &mut app.settings_state);
 
@@ -503,7 +502,7 @@ fn draw_theme_picker(frame: &mut Frame, app: &mut App) {
     let accent = Style::new().fg(theme.accent);
     let warning = Style::new().fg(theme.warning);
     let border_style = Style::new().fg(theme.border);
-    let current_theme = app.config.theme.clone();
+    let current_theme = app.config.theme.as_deref().map(crate::theme::slugify);
 
     let items: Vec<ListItem> = app
         .available_themes
@@ -511,9 +510,9 @@ fn draw_theme_picker(frame: &mut Frame, app: &mut App) {
         .map(|name| {
             let is_active = current_theme
                 .as_deref()
-                .is_some_and(|current| current.eq_ignore_ascii_case(name));
+                .is_some_and(|current| current == crate::theme::slugify(name));
 
-            let marker = if is_active { "◉" } else { "○" };
+            let marker = if is_active { " ◉" } else { " ○" };
             let marker_style = if is_active { accent } else { normal };
 
             ListItem::new(Line::from(vec![
@@ -536,8 +535,7 @@ fn draw_theme_picker(frame: &mut Frame, app: &mut App) {
                 .fg(theme.selection_fg)
                 .bg(theme.selection_bg)
                 .bold(),
-        )
-        .highlight_symbol("→ ");
+        );
 
     frame.render_stateful_widget(list, vertical[0], &mut app.theme_state);
 

@@ -243,8 +243,7 @@ pub fn draw_edit(frame: &mut Frame, app: &mut App) {
                 .border_style(border_style)
                 .title(title),
         )
-        .highlight_style(editing_style)
-        .highlight_symbol("→ ");
+        .highlight_style(editing_style);
 
     frame.render_stateful_widget(list, vertical[0], &mut app.edit_state);
 
