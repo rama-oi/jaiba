@@ -13,17 +13,25 @@ use crate::db::Entry;
 use crate::theme::Theme;
 use crate::util::wrap_help_items;
 
-const HELP_ITEMS: &[&str] = &[
-    "[↑↓] navigate",
-    "[^u] cp_user",
-    "[^p] cp_password",
-    "[^t] cp_totp",
-    "[^r] cp_url",
-    "[^a] add_entry",
-    "[enter] expand_entry",
-    "[^s] settings",
-    "[esc] quit",
-];
+fn help_items(slim_mode: bool) -> &'static [&'static str] {
+    if slim_mode {
+        &[
+            "[↑↓]", "[^u]", "[^p]", "[^t]", "[^r]", "[^a]", "[^s]", "[enter]", "[esc]",
+        ]
+    } else {
+        &[
+            "[↑↓] navigate",
+            "[^u] cp_user",
+            "[^p] cp_password",
+            "[^t] cp_totp",
+            "[^r] cp_url",
+            "[^a] add_entry",
+            "[^s] settings",
+            "[enter] expand_entry",
+            "[esc] quit",
+        ]
+    }
+}
 
 fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
     let normal = Style::new().fg(theme.text);
@@ -84,7 +92,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()
@@ -92,6 +100,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .constraints([
             Constraint::Length(3),
             Constraint::Fill(1),
+            Constraint::Length(1),
             Constraint::Length(help_height),
         ])
         .split(full_area);
@@ -104,6 +113,12 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             Constraint::Length(1),
         ])
         .split(vertical[0]);
+
+    let separator = Block::default()
+        .borders(Borders::TOP)
+        .border_style(Style::new().fg(app.theme.border));
+
+    frame.render_widget(separator, vertical[2]);
 
     let help_text = help_lines
         .iter()
@@ -130,7 +145,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         Paragraph::new(help_text).style(Style::new().fg(app.theme.accent))
     };
 
-    frame.render_widget(help, vertical[2]);
+    frame.render_widget(help, vertical[3]);
 
     let rows = app.filtered.iter().map(|&i| {
         let entry = &app.entries[i];

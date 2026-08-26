@@ -1,9 +1,9 @@
 [package]
 name = "jaiba"
-version = "2026.6.0"
+version = "2026.7.0"
 edition = "2024"
 rust-version = "1.85"
-description = "A terminal password manager for KeePass (.kdbx) vaults"
+description = "Terminal password manager for KeePass vaults"
 authors = ["Pombo <https://github.com/pomboverso>"]
 license = "GPL-3.0-or-later"
 repository = "https://github.com/rama-oi/jaiba"

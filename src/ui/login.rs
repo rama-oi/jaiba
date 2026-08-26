@@ -1,6 +1,6 @@
 use ratatui::{
     Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
     style::Style,
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
@@ -11,6 +11,11 @@ use crate::input::login::database_missing;
 use crate::util::default_new_database_path;
 
 pub fn draw_login(frame: &mut Frame, app: &mut App) {
+    let area = frame.area().inner(Margin {
+        horizontal: 1,
+        vertical: 1,
+    });
+
     let logo_height = if app.slim_mode { 0 } else { 20 };
 
     let vertical = Layout::default()
@@ -21,7 +26,7 @@ pub fn draw_login(frame: &mut Frame, app: &mut App) {
             Constraint::Length(3),
             Constraint::Fill(1),
         ])
-        .split(frame.area());
+        .split(area);
 
     let logo_area = vertical[1];
     let input_row = vertical[2];
