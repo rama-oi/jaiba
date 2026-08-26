@@ -33,11 +33,6 @@ It's fast to open, keyboard-driven, and stores only what it needs:
 
 ## Installing
 
-### Prebuilt packages (recommended)
-
-Grab the file for your system from the [latest release](https://github.com/pomboverso/jaiba/releases/latest).
-
-
 ### From crates.io
 
 ```sh
@@ -60,35 +55,6 @@ default_database = "~/Documents/passwords.kdbx"
 keyfile = "~/Documents/passwords.keyx"
 ```
 
-## Keybindings
-
-### Index screen
-
-| Key       | Action                        |
-| --------- | ----------------------------- |
-| `↑` / `↓` | Move selection                |
-| type      | Filter entries by name / user |
-| `Enter`   | Open the selected entry       |
-| `Ctrl+U`  | Copy username                 |
-| `Ctrl+P`  | Copy password                 |
-| `Ctrl+T`  | Copy current TOTP code        |
-| `Ctrl+R`  | Copy URL                      |
-| `Ctrl+A`  | Add a new entry               |
-| `Ctrl+S`  | Open Settings                 |
-| `Ctrl+Q`  | Quit                          |
-
-Shortcuts are case-insensitive, so `Ctrl+Q` works the same as `Ctrl+q`.
-
-### Settings screen
-
-| Key     | Action                               |
-| ------- | ------------------------------------ |
-| `↑`/`↓` | Navigate rows                        |
-| `Enter` | Edit the selected field / pick theme |
-| `Esc`   | Back to the index screen             |
-
-From Settings you can change the default vault path, optional keyfile path, auto-lock timeout, clipboard timeout, active theme, and the vault's master password (you'll be asked for the current password first, then the new one twice).
-
 ## Configuration
 
 Jaiba reads its config from `~/.config/rama/jaiba_config.toml`:
@@ -101,35 +67,7 @@ clipboard_timeout = 15    # seconds before a copied value is cleared
 theme = "catppuccin-mocha"
 ```
 
-All fields are optional; missing ones fall back to sane defaults. In particular, omitting `keyfile` keeps the original password-only behavior. Paths support `~` expansion. You can also edit these values live from the Settings screen instead of hand-editing the file. See [`config.example.toml`](config.example.toml) for a copyable example.
-
-## Themes
-
-Drop `.toml` theme files into `~/.config/rama/themes/`. Each one looks like:
-
-```toml
-// catppuccin_mocha.toml
-name = "catppuccin-mocha"
-
-[colors]
-background   = "#1e1e2e"
-text         = "#cdd6f4"
-border       = "#45475a"
-header       = "#9399b2"
-accent       = "#cba6f7"
-warning      = "#f9e2af"
-error        = "#f38ba8"
-selection_fg = "#1e1e2e"
-selection_bg = "#89b4fa"
-claws        = "#437db6"
-claws_light  = "#64a0d2"
-claws_shadow = "#2d5c91"
-shell        = "#567468"
-shell_light  = "#789488"
-shell_shadow = "#3a524a"
-```
-
-Pick one up from Settings → Theme, or set the `theme` key in `jaiba_config.toml` directly.
+All fields are optional; missing ones fall back to sane defaults.
 
 ## Security notes
 
@@ -138,17 +76,3 @@ Pick one up from Settings → Theme, or set the `theme` key in `jaiba_config.tom
 - Changing the master password re-encrypts the whole vault in place, and requires entering the _current_ password first. For a keyfile-protected vault, the configured keyfile remains part of the new composite key.
 - The clipboard is cleared automatically after `clipboard_timeout` seconds, but only if it still holds the value Jaiba copied (so it won't stomp on something else you copied in the meantime).
 - The app locks itself after `auto_lock` seconds of inactivity, clearing decrypted entries and the master password from memory.
-
-## Releasing / packaging
-
-For maintainers cutting a release — builds the `.deb`, `.rpm`, and `.AppImage`, dropping everything in `./dist/`:
-
-```sh
-./deploy.sh
-```
-
-Run `./deploy.sh` with no arguments to build everything, or `deb` / `rpm` / `appimage` to build just one. See the comments at the top of `deploy.sh` for per-target requirements.
-
-## License
-
-GPL-3.0-or-later

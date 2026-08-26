@@ -33,6 +33,10 @@ pub fn handle_index_input(app: &mut App, key: KeyEvent) {
             preview_entry(app);
         }
 
+        KeyCode::Esc => {
+            app.should_quit = true;
+        }
+
         KeyCode::Down => {
             let row_count = app.filtered.len();
 

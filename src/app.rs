@@ -110,6 +110,7 @@ pub struct App {
     pub clipboard_timer: Option<ClipboardTimer>,
 
     pub should_quit: bool,
+    pub slim_mode: bool,
 }
 
 impl App {
@@ -204,7 +205,10 @@ fn maybe_auto_lock(app: &mut App) {
     app.login_error = Some("Locked after inactivity".to_string());
 }
 
-pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+pub fn run(
+    terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
+    slim_mode: bool,
+) -> io::Result<()> {
     let _ = crate::theme::ensure_default_themes();
 
     let mut config = load_config().unwrap_or_default();
@@ -267,6 +271,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         clipboard: Clipboard::new().ok(),
         clipboard_timer: None,
         should_quit: false,
+        slim_mode,
     };
 
     const TICK_RATE: Duration = Duration::from_millis(200);

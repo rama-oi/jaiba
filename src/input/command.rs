@@ -9,7 +9,6 @@ pub fn handle_shortcut(app: &mut App, c: char) {
         't' => cp_totp(app),
         'r' => cp_url(app),
         'a' => add_entry(app),
-        'q' => app.should_quit = true,
         's' => open_settings(app),
         _ => {}
     }
@@ -52,9 +51,10 @@ fn open_settings(app: &mut App) {
     app.available_themes = crate::theme::list_theme_names().unwrap_or_default();
 
     let current_idx = app.config.theme.as_deref().and_then(|current| {
+        let current = crate::theme::slugify(current);
         app.available_themes
             .iter()
-            .position(|name| name.eq_ignore_ascii_case(current))
+            .position(|name| crate::theme::slugify(name) == current)
     });
 
     let selected = current_idx.or(if app.available_themes.is_empty() {

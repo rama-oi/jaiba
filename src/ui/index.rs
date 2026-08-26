@@ -21,8 +21,8 @@ const HELP_ITEMS: &[&str] = &[
     "[^r] cp_url",
     "[^a] add_entry",
     "[enter] expand_entry",
-    "[^q] quit",
     "[^s] settings",
+    "[esc] quit",
 ];
 
 fn masked_password<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
@@ -57,6 +57,29 @@ fn masked_user<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
     Line::from(spans)
 }
 
+fn slim_row<'a>(entry: &'a Entry, theme: &Theme) -> Line<'a> {
+    let normal = Style::new().fg(theme.text);
+    let warning = Style::new().fg(theme.warning);
+
+    let mut spans = vec![Span::styled(format!("  {}", entry.name), normal)];
+
+    if entry.duplicate_user_count > 1 {
+        spans.push(Span::styled(
+            format!(" u[{}]", entry.duplicate_user_count),
+            warning,
+        ));
+    }
+
+    if entry.password_reuse_count > 1 {
+        spans.push(Span::styled(
+            format!(" p[{}]", entry.password_reuse_count),
+            warning,
+        ));
+    }
+
+    Line::from(spans)
+}
+
 pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
@@ -81,10 +104,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             Constraint::Length(1),
         ])
         .split(vertical[0]);
-
-    let header = Row::new(["Name", "User", "Password", "Last Modify"])
-        .style(Style::new().bold().fg(app.theme.header))
-        .bottom_margin(1);
 
     let help_text = help_lines
         .iter()
@@ -118,23 +137,30 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         let password = masked_password(entry, &app.theme);
         let user = masked_user(entry, &app.theme);
 
-        Row::new([
-            Cell::from(entry.name.as_str()),
-            Cell::from(user),
-            Cell::from(password),
-            Cell::from(entry.date_last_modify.as_str()),
-        ])
+        if app.slim_mode {
+            Row::new([Cell::from(slim_row(entry, &app.theme))])
+        } else {
+            Row::new([
+                Cell::from(format!("  {}", entry.name)),
+                Cell::from(user),
+                Cell::from(password),
+                Cell::from(entry.date_last_modify.as_str()),
+            ])
+        }
     });
 
-    let column_widths = [
-        Constraint::Percentage(30),
-        Constraint::Percentage(40),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-    ];
+    let column_widths = if app.slim_mode {
+        vec![Constraint::Percentage(100)]
+    } else {
+        vec![
+            Constraint::Percentage(30),
+            Constraint::Percentage(40),
+            Constraint::Percentage(15),
+            Constraint::Percentage(15),
+        ]
+    };
 
-    let table_index = Table::new(rows, column_widths)
-        .header(header)
+    let mut table_index = Table::new(rows, column_widths)
         .column_spacing(1)
         .style(Style::new().fg(app.theme.text))
         .row_highlight_style(
@@ -142,8 +168,15 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
                 .fg(app.theme.selection_fg)
                 .bg(app.theme.selection_bg)
                 .bold(),
-        )
-        .highlight_symbol("→ ");
+        );
+
+    if !app.slim_mode {
+        table_index = table_index.header(
+            Row::new(["  Name", "User", "Password", "Last Modify"])
+                .style(Style::new().bold().fg(app.theme.header))
+                .bottom_margin(1),
+        );
+    }
 
     let index_area = vertical[1];
 

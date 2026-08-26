@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Jaiba
-GenericName=Password Manager
-Comment=Terminal password manager for KeePass (.kdbx) vaults
-Exec=jaiba
-Icon=jaiba
-Terminal=true
-Categories=Utility;Security;
