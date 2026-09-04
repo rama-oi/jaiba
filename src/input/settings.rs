@@ -272,7 +272,7 @@ fn handle_change_password_input(app: &mut App, key: KeyCode) {
 }
 
 fn verify_current_password(app: &mut App) {
-    let Some(path) = app.config.default_database.clone() else {
+    let Some(path) = app.active_database_path() else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
@@ -281,7 +281,7 @@ fn verify_current_password(app: &mut App) {
     match unlock_database(
         &path,
         &app.current_password_buffer,
-        app.config.keyfile.as_deref(),
+        app.active_keyfile_path().as_deref(),
     ) {
         Ok(_) => {
             app.current_password_buffer.clear();
@@ -319,7 +319,12 @@ fn commit_password_change(app: &mut App) {
         }
     };
 
-    let (Some(path), Some(db)) = (app.config.default_database.clone(), app.kdbx.as_mut()) else {
+    let Some(path) = app.active_database_path() else {
+        app.status = Some("no unlocked database".to_string());
+        cancel_change_password(app);
+        return;
+    };
+    let Some(db) = app.kdbx.as_mut() else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
@@ -461,7 +466,7 @@ fn finish_import(app: &mut App, imported: Vec<Entry>, source: &Path) {
     app.refresh_filter();
 
     let (Some(path), Some(key), Some(db)) = (
-        app.config.default_database.clone(),
+        app.active_database_path(),
         app.db_key.clone(),
         app.kdbx.as_mut(),
     ) else {

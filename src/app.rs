@@ -1,9 +1,9 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 use arboard::Clipboard;
-use crossterm::event::{self, Event};
+use crossterm::event::{self, Event, MouseButton, MouseEvent, MouseEventKind};
 use keepass::{Database, DatabaseKey};
 use ratatui::{
     Terminal,
@@ -30,6 +30,26 @@ pub enum Screen {
     Index,
     Edit,
     Settings,
+    OpenDatabase,
+}
+
+#[derive(PartialEq, Eq)]
+pub enum OpenDatabaseStep {
+    Path,
+    Password,
+    Keyfile,
+}
+
+pub struct VaultTab {
+    pub path: PathBuf,
+    pub keyfile_path: Option<PathBuf>,
+    pub label: String,
+    pub kdbx: Option<Database>,
+    pub db_key: Option<DatabaseKey>,
+    pub entries: Vec<Entry>,
+    pub filtered: Vec<usize>,
+    pub query: String,
+    pub index_state: TableState,
 }
 
 #[derive(PartialEq, Eq)]
@@ -111,6 +131,28 @@ pub struct App {
 
     pub should_quit: bool,
     pub slim_mode: bool,
+
+    pub tabs: Vec<VaultTab>,
+    pub active_tab: usize,
+    pub open_database_step: OpenDatabaseStep,
+    pub open_path_buffer: String,
+    pub open_password_buffer: String,
+    pub open_keyfile_buffer: String,
+    pub open_completion_candidates: Vec<String>,
+    pub open_completion_index: usize,
+}
+
+fn handle_mouse_input(app: &mut App, mouse: MouseEvent) {
+    if !matches!(app.screen, Screen::Index | Screen::Edit | Screen::Settings)
+        || mouse.kind != MouseEventKind::Down(MouseButton::Left)
+        || mouse.row >= 2
+    {
+        return;
+    }
+
+    if let Some(tab) = crate::ui::tabs::tab_at_column(app, mouse.column) {
+        app.switch_tab(tab);
+    }
 }
 
 impl App {
@@ -155,6 +197,145 @@ impl App {
         let entry_idx = *self.filtered.get(selected)?;
         self.entries.get(entry_idx)
     }
+
+    fn store_active_tab(&mut self) {
+        let Some(tab) = self.tabs.get_mut(self.active_tab) else {
+            return;
+        };
+
+        tab.kdbx = self.kdbx.take();
+        tab.db_key = self.db_key.take();
+        tab.entries = std::mem::take(&mut self.entries);
+        tab.filtered = std::mem::take(&mut self.filtered);
+        tab.query = std::mem::take(&mut self.query);
+        tab.index_state = std::mem::take(&mut self.index_state);
+    }
+
+    fn load_active_tab(&mut self) {
+        let Some(tab) = self.tabs.get_mut(self.active_tab) else {
+            return;
+        };
+
+        self.kdbx = tab.kdbx.take();
+        self.db_key = tab.db_key.take();
+        self.entries = std::mem::take(&mut tab.entries);
+        self.filtered = std::mem::take(&mut tab.filtered);
+        self.query = std::mem::take(&mut tab.query);
+        self.index_state = std::mem::take(&mut tab.index_state);
+    }
+
+    pub fn active_database_path(&self) -> Option<PathBuf> {
+        self.tabs.get(self.active_tab).map(|tab| tab.path.clone())
+    }
+
+    pub fn active_keyfile_path(&self) -> Option<PathBuf> {
+        self.tabs
+            .get(self.active_tab)
+            .and_then(|tab| tab.keyfile_path.clone())
+    }
+
+    pub fn add_tab(
+        &mut self,
+        path: PathBuf,
+        keyfile_path: Option<PathBuf>,
+        db: Database,
+        key: DatabaseKey,
+        entries: Vec<Entry>,
+    ) {
+        if !self.tabs.is_empty() {
+            self.store_active_tab();
+        }
+
+        let label = tab_label(&path);
+        self.tabs.push(VaultTab {
+            path,
+            keyfile_path,
+            label,
+            kdbx: Some(db),
+            db_key: Some(key),
+            entries,
+            filtered: Vec::new(),
+            query: String::new(),
+            index_state: TableState::default().with_selected(Some(0)),
+        });
+        self.refresh_tab_labels();
+        self.active_tab = self.tabs.len() - 1;
+        self.load_active_tab();
+        self.refresh_filter();
+    }
+
+    pub fn switch_tab(&mut self, target: usize) {
+        if target >= self.tabs.len() || target == self.active_tab {
+            return;
+        }
+
+        self.store_active_tab();
+        self.active_tab = target;
+        self.load_active_tab();
+    }
+
+    pub fn close_active_tab(&mut self) {
+        if self.tabs.is_empty() {
+            return;
+        }
+
+        self.store_active_tab();
+        self.tabs.remove(self.active_tab);
+
+        if self.tabs.is_empty() {
+            self.active_tab = 0;
+            self.kdbx = None;
+            self.db_key = None;
+            self.entries.clear();
+            self.filtered.clear();
+            self.query.clear();
+            self.screen = Screen::Login;
+            return;
+        }
+
+        if self.active_tab >= self.tabs.len() {
+            self.active_tab = self.tabs.len() - 1;
+        }
+        self.load_active_tab();
+    }
+
+    pub fn reset_open_database(&mut self) {
+        self.open_database_step = OpenDatabaseStep::Path;
+        self.open_path_buffer.clear();
+        self.open_password_buffer.clear();
+        self.open_keyfile_buffer.clear();
+        self.open_completion_candidates.clear();
+        self.open_completion_index = 0;
+    }
+
+    fn refresh_tab_labels(&mut self) {
+        for index in 0..self.tabs.len() {
+            let base = tab_label(&self.tabs[index].path);
+            let duplicate = self
+                .tabs
+                .iter()
+                .enumerate()
+                .any(|(other, tab)| other != index && tab_label(&tab.path) == base);
+
+            self.tabs[index].label = if duplicate {
+                self.tabs[index]
+                    .path
+                    .parent()
+                    .map(|parent| format!("{base} ({})", parent.display()))
+                    .unwrap_or(base)
+            } else {
+                base
+            };
+        }
+    }
+}
+
+fn tab_label(path: &Path) -> String {
+    path.file_stem()
+        .or_else(|| path.file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| path.display().to_string())
 }
 
 fn maybe_auto_lock(app: &mut App) {
@@ -166,6 +347,9 @@ fn maybe_auto_lock(app: &mut App) {
         return;
     }
 
+    app.store_active_tab();
+    app.tabs.clear();
+    app.active_tab = 0;
     app.entries.clear();
     app.filtered.clear();
     app.password.clear();
@@ -201,6 +385,7 @@ fn maybe_auto_lock(app: &mut App) {
     app.export_step = ExportStep::Path;
     app.export_path_buffer.clear();
     app.pending_export_path = None;
+    app.reset_open_database();
     app.screen = Screen::Login;
     app.login_error = Some("Locked after inactivity".to_string());
 }
@@ -272,7 +457,19 @@ pub fn run(
         clipboard_timer: None,
         should_quit: false,
         slim_mode,
+        tabs: Vec::new(),
+        active_tab: 0,
+        open_database_step: OpenDatabaseStep::Path,
+        open_path_buffer: String::new(),
+        open_password_buffer: String::new(),
+        open_keyfile_buffer: String::new(),
+        open_completion_candidates: Vec::new(),
+        open_completion_index: 0,
     };
+
+    if app.config.default_database.is_none() {
+        app.screen = Screen::OpenDatabase;
+    }
 
     const TICK_RATE: Duration = Duration::from_millis(200);
 
@@ -288,19 +485,30 @@ pub fn run(
                 Screen::Index => draw_index(frame, &mut app),
                 Screen::Edit => draw_edit(frame, &mut app),
                 Screen::Settings => draw_settings(frame, &mut app),
+                Screen::OpenDatabase => crate::ui::open::draw_open_database(frame, &mut app),
             }
         })?;
 
         if event::poll(TICK_RATE)? {
-            if let Event::Key(key) = event::read()? {
-                app.last_activity = Instant::now();
+            match event::read()? {
+                Event::Key(key) => {
+                    app.last_activity = Instant::now();
 
-                match app.screen {
-                    Screen::Login => handle_login_input(&mut app, key.code),
-                    Screen::Index => handle_index_input(&mut app, key),
-                    Screen::Edit => handle_edit_input(&mut app, key.code),
-                    Screen::Settings => handle_settings_input(&mut app, key.code),
+                    match app.screen {
+                        Screen::Login => handle_login_input(&mut app, key.code),
+                        Screen::Index => handle_index_input(&mut app, key),
+                        Screen::Edit => handle_edit_input(&mut app, key.code),
+                        Screen::Settings => handle_settings_input(&mut app, key.code),
+                        Screen::OpenDatabase => {
+                            crate::input::open::handle_open_database_input(&mut app, key.code)
+                        }
+                    }
                 }
+                Event::Mouse(mouse) => {
+                    app.last_activity = Instant::now();
+                    handle_mouse_input(&mut app, mouse);
+                }
+                _ => {}
             }
         }
 

@@ -16,7 +16,18 @@ use crate::util::wrap_help_items;
 fn help_items(slim_mode: bool) -> &'static [&'static str] {
     if slim_mode {
         &[
-            "[↑↓]", "[^u]", "[^p]", "[^t]", "[^r]", "[^a]", "[^s]", "[enter]", "[esc]",
+            "[↑↓]",
+            "[^u]",
+            "[^p]",
+            "[^t]",
+            "[^r]",
+            "[^a]",
+            "[^s]",
+            "[^o]",
+            "[^←→]",
+            "[^w]",
+            "[enter]",
+            "[esc]",
         ]
     } else {
         &[
@@ -27,6 +38,9 @@ fn help_items(slim_mode: bool) -> &'static [&'static str] {
             "[^r] cp_url",
             "[^a] add_entry",
             "[^s] settings",
+            "[^o] open_database",
+            "[^←→] switch_tab",
+            "[^w] close_tab",
             "[enter] expand_entry",
             "[esc] quit",
         ]
@@ -94,16 +108,20 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(help_items(app.slim_mode), help_width);
     let help_height = help_lines.len() as u16;
+    let tab_height = if app.tabs.len() >= 2 { 2 } else { 0 };
 
     let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
+            Constraint::Length(tab_height),
             Constraint::Length(3),
             Constraint::Fill(1),
             Constraint::Length(1),
             Constraint::Length(help_height),
         ])
         .split(full_area);
+
+    crate::ui::tabs::draw_tabs(frame, app, vertical[0]);
 
     let query_row = Layout::default()
         .direction(Direction::Horizontal)
@@ -112,13 +130,13 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             Constraint::Fill(1),
             Constraint::Length(1),
         ])
-        .split(vertical[0]);
+        .split(vertical[1]);
 
     let separator = Block::default()
         .borders(Borders::TOP)
         .border_style(Style::new().fg(app.theme.border));
 
-    frame.render_widget(separator, vertical[2]);
+    frame.render_widget(separator, vertical[3]);
 
     let help_text = help_lines
         .iter()
@@ -145,7 +163,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         Paragraph::new(help_text).style(Style::new().fg(app.theme.accent))
     };
 
-    frame.render_widget(help, vertical[3]);
+    frame.render_widget(help, vertical[4]);
 
     let rows = app.filtered.iter().map(|&i| {
         let entry = &app.entries[i];
@@ -193,7 +211,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         );
     }
 
-    let index_area = vertical[1];
+    let index_area = vertical[2];
 
     frame.render_stateful_widget(table_index, index_area, &mut app.index_state);
 
