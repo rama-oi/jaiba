@@ -9,6 +9,7 @@ use crate::util::expand_tilde;
 
 const SAMPLE_CONFIG: &str = include_str!("../jaiba_config.toml.sample");
 
+#[derive(Clone)]
 pub struct Config {
     pub default_database: Option<PathBuf>,
     pub keyfile: Option<PathBuf>,

@@ -72,6 +72,8 @@ pub struct App {
     pub db_key: Option<DatabaseKey>,
     pub theme: Theme,
     pub config: Config,
+    pub config_default_database: Option<PathBuf>,
+    pub cli_vault_override: bool,
 
     pub creating_database: bool,
     pub confirming_new_db_password: bool,
@@ -155,6 +157,16 @@ impl App {
         let entry_idx = *self.filtered.get(selected)?;
         self.entries.get(entry_idx)
     }
+
+    pub fn save_config(&self) -> anyhow::Result<()> {
+        let mut config = self.config.clone();
+
+        if self.cli_vault_override {
+            config.default_database = self.config_default_database.clone();
+        }
+
+        crate::config::save_config(&config)
+    }
 }
 
 fn maybe_auto_lock(app: &mut App) {
@@ -208,12 +220,19 @@ fn maybe_auto_lock(app: &mut App) {
 pub fn run(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     slim_mode: bool,
+    vault_path: Option<PathBuf>,
 ) -> io::Result<()> {
     let _ = crate::theme::ensure_default_themes();
 
     let mut config = load_config().unwrap_or_default();
+    let config_default_database = config.default_database.clone();
+    let cli_vault_override = vault_path.is_some();
 
-    if config.default_database.is_none() {
+    if let Some(path) = vault_path {
+        config.default_database = Some(path);
+    }
+
+    if !cli_vault_override && config.default_database.is_none() {
         let default_path = crate::util::default_new_database_path();
         if default_path.is_file() {
             config.default_database = Some(default_path);
@@ -230,6 +249,8 @@ pub fn run(
         max_len: 0,
         theme,
         config,
+        config_default_database,
+        cli_vault_override,
         available_themes: Vec::new(),
         settings_state: ListState::default(),
         choosing_theme: false,

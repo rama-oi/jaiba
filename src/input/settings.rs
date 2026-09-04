@@ -4,7 +4,6 @@ use std::time::Duration;
 use crossterm::event::KeyCode;
 
 use crate::app::{App, ExportStep, ImportStep, PasswordChangeStep, Screen};
-use crate::config::save_config;
 use crate::db::{Entry, build_database_key, calculate_warnings, save_database, unlock_database};
 use crate::theme::load_theme;
 use crate::util::expand_tilde;
@@ -193,7 +192,7 @@ fn commit_field(app: &mut App) {
         _ => return,
     }
 
-    app.status = Some(match save_config(&app.config) {
+    app.status = Some(match app.save_config() {
         Ok(()) => "saved".to_string(),
         Err(err) => format!("couldn't save config: {err}"),
     });
@@ -683,7 +682,7 @@ fn apply_selected_theme(app: &mut App) {
             app.theme = theme;
             app.config.theme = Some(crate::theme::slugify(&name));
 
-            app.status = Some(match save_config(&app.config) {
+            app.status = Some(match app.save_config() {
                 Ok(()) => format!("theme set to {name}"),
                 Err(err) => format!("theme applied, but couldn't save config: {err}"),
             });
