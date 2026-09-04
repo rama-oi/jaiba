@@ -208,11 +208,9 @@ fn save_edit(app: &mut App) {
 }
 
 fn persist_entry(app: &mut App, idx: usize) {
-    let (Some(db), Some(key), Some(path)) = (
-        app.kdbx.as_mut(),
-        app.db_key.as_ref(),
-        app.config.default_database.as_ref(),
-    ) else {
+    let path = app.active_database_path();
+    let (Some(db), Some(key), Some(path)) = (app.kdbx.as_mut(), app.db_key.as_ref(), path.as_ref())
+    else {
         app.status = Some("Not saved: database is locked".to_string());
         return;
     };
@@ -252,11 +250,10 @@ fn delete_current_entry(app: &mut App) {
     };
 
     if let Some(id) = entry.id {
-        let (Some(db), Some(key), Some(path)) = (
-            app.kdbx.as_mut(),
-            app.db_key.as_ref(),
-            app.config.default_database.as_ref(),
-        ) else {
+        let path = app.active_database_path();
+        let (Some(db), Some(key), Some(path)) =
+            (app.kdbx.as_mut(), app.db_key.as_ref(), path.as_ref())
+        else {
             app.status = Some("Not deleted: database is locked".to_string());
             app.edit_entry = Some(entry);
             return;

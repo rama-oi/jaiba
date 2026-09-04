@@ -153,16 +153,13 @@ fn finish_create_database(app: &mut App) {
             app.config.default_database = Some(path.clone());
             let save_result = save_config(&app.config);
 
-            app.kdbx = Some(db);
-            app.db_key = Some(key);
-            app.entries = entries;
+            app.add_tab(path.clone(), app.config.keyfile.clone(), db, key, entries);
             app.password.clear();
             app.new_db_confirm.clear();
             app.creating_database = false;
             app.confirming_new_db_password = false;
             app.login_error = None;
             app.last_activity = Instant::now();
-            app.refresh_filter();
             app.screen = Screen::Index;
 
             app.status = Some(match save_result {
@@ -189,13 +186,10 @@ fn attempt_unlock(app: &mut App) {
     match unlock_database(&path, &app.password, app.config.keyfile.as_deref()) {
         Ok((db, key, mut entries)) => {
             calculate_warnings(&mut entries);
-            app.entries = entries;
-            app.kdbx = Some(db);
-            app.db_key = Some(key);
+            app.add_tab(path, app.config.keyfile.clone(), db, key, entries);
             app.password.clear();
             app.login_error = None;
             app.last_activity = Instant::now();
-            app.refresh_filter();
             app.screen = Screen::Index;
         }
         Err(err) => {

@@ -2,6 +2,7 @@ pub mod command;
 pub mod edit;
 pub mod index;
 pub mod login;
+pub mod open;
 pub mod settings;
 
 use crossterm::event::KeyCode;

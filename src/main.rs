@@ -11,16 +11,23 @@ mod util;
 
 use std::io;
 
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+};
+
 fn main() -> io::Result<()> {
     let slim_mode = handle_cli_flags();
 
     let mut terminal = ratatui::init();
+    execute!(io::stdout(), EnableMouseCapture)?;
 
-    app::run(&mut terminal, slim_mode)?;
+    let result = app::run(&mut terminal, slim_mode);
 
+    execute!(io::stdout(), DisableMouseCapture)?;
     ratatui::restore();
 
-    Ok(())
+    result
 }
 
 fn handle_cli_flags() -> bool {
