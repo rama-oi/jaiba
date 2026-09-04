@@ -48,6 +48,22 @@ On first launch, if no vault is found at the configured path, Jaiba will:
 
 Once unlocked, you land on the index screen, where you can search, browse, and open entries.
 
+To open a vault for one session without changing the configured default, pass its path on the
+command line:
+
+```sh
+jaiba --vault "~/Documents/work.kdbx"
+```
+
+The command-line path takes precedence over `default_database` and is not saved to the config.
+For an existing `.kdbx` file, the path may also be supplied positionally:
+
+```sh
+jaiba "~/Documents/work.kdbx"
+```
+
+The positional form requires an existing `.kdbx` file and cannot be combined with `--vault`.
+
 To open an existing vault, set `default_database` in the config. If the vault also requires a keyfile, set `keyfile` as well; Jaiba will still prompt for and require the master password:
 
 ```toml
