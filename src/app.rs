@@ -92,6 +92,8 @@ pub struct App {
     pub db_key: Option<DatabaseKey>,
     pub theme: Theme,
     pub config: Config,
+    pub config_default_database: Option<PathBuf>,
+    pub cli_vault_override: bool,
 
     pub creating_database: bool,
     pub confirming_new_db_password: bool,
@@ -198,144 +200,15 @@ impl App {
         self.entries.get(entry_idx)
     }
 
-    fn store_active_tab(&mut self) {
-        let Some(tab) = self.tabs.get_mut(self.active_tab) else {
-            return;
-        };
+    pub fn save_config(&self) -> anyhow::Result<()> {
+        let mut config = self.config.clone();
 
-        tab.kdbx = self.kdbx.take();
-        tab.db_key = self.db_key.take();
-        tab.entries = std::mem::take(&mut self.entries);
-        tab.filtered = std::mem::take(&mut self.filtered);
-        tab.query = std::mem::take(&mut self.query);
-        tab.index_state = std::mem::take(&mut self.index_state);
-    }
-
-    fn load_active_tab(&mut self) {
-        let Some(tab) = self.tabs.get_mut(self.active_tab) else {
-            return;
-        };
-
-        self.kdbx = tab.kdbx.take();
-        self.db_key = tab.db_key.take();
-        self.entries = std::mem::take(&mut tab.entries);
-        self.filtered = std::mem::take(&mut tab.filtered);
-        self.query = std::mem::take(&mut tab.query);
-        self.index_state = std::mem::take(&mut tab.index_state);
-    }
-
-    pub fn active_database_path(&self) -> Option<PathBuf> {
-        self.tabs.get(self.active_tab).map(|tab| tab.path.clone())
-    }
-
-    pub fn active_keyfile_path(&self) -> Option<PathBuf> {
-        self.tabs
-            .get(self.active_tab)
-            .and_then(|tab| tab.keyfile_path.clone())
-    }
-
-    pub fn add_tab(
-        &mut self,
-        path: PathBuf,
-        keyfile_path: Option<PathBuf>,
-        db: Database,
-        key: DatabaseKey,
-        entries: Vec<Entry>,
-    ) {
-        if !self.tabs.is_empty() {
-            self.store_active_tab();
+        if self.cli_vault_override {
+            config.default_database = self.config_default_database.clone();
         }
 
-        let label = tab_label(&path);
-        self.tabs.push(VaultTab {
-            path,
-            keyfile_path,
-            label,
-            kdbx: Some(db),
-            db_key: Some(key),
-            entries,
-            filtered: Vec::new(),
-            query: String::new(),
-            index_state: TableState::default().with_selected(Some(0)),
-        });
-        self.refresh_tab_labels();
-        self.active_tab = self.tabs.len() - 1;
-        self.load_active_tab();
-        self.refresh_filter();
+        crate::config::save_config(&config)
     }
-
-    pub fn switch_tab(&mut self, target: usize) {
-        if target >= self.tabs.len() || target == self.active_tab {
-            return;
-        }
-
-        self.store_active_tab();
-        self.active_tab = target;
-        self.load_active_tab();
-    }
-
-    pub fn close_active_tab(&mut self) {
-        if self.tabs.is_empty() {
-            return;
-        }
-
-        self.store_active_tab();
-        self.tabs.remove(self.active_tab);
-
-        if self.tabs.is_empty() {
-            self.active_tab = 0;
-            self.kdbx = None;
-            self.db_key = None;
-            self.entries.clear();
-            self.filtered.clear();
-            self.query.clear();
-            self.screen = Screen::Login;
-            return;
-        }
-
-        if self.active_tab >= self.tabs.len() {
-            self.active_tab = self.tabs.len() - 1;
-        }
-        self.load_active_tab();
-    }
-
-    pub fn reset_open_database(&mut self) {
-        self.open_database_step = OpenDatabaseStep::Path;
-        self.open_path_buffer.clear();
-        self.open_password_buffer.clear();
-        self.open_keyfile_buffer.clear();
-        self.open_completion_candidates.clear();
-        self.open_completion_index = 0;
-    }
-
-    fn refresh_tab_labels(&mut self) {
-        for index in 0..self.tabs.len() {
-            let base = tab_label(&self.tabs[index].path);
-            let duplicate = self
-                .tabs
-                .iter()
-                .enumerate()
-                .any(|(other, tab)| other != index && tab_label(&tab.path) == base);
-
-            self.tabs[index].label = if duplicate {
-                self.tabs[index]
-                    .path
-                    .parent()
-                    .map(|parent| format!("{base} ({})", parent.display()))
-                    .unwrap_or(base)
-            } else {
-                base
-            };
-        }
-    }
-}
-
-fn tab_label(path: &Path) -> String {
-    path.file_stem()
-        .or_else(|| path.file_name())
-        .map(|name| name.to_string_lossy().into_owned())
-        .filter(|name| !name.is_empty())
-        .unwrap_or_else(|| path.display().to_string())
 }
 
 fn maybe_auto_lock(app: &mut App) {
@@ -393,12 +266,19 @@ fn maybe_auto_lock(app: &mut App) {
 pub fn run(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     slim_mode: bool,
+    vault_path: Option<PathBuf>,
 ) -> io::Result<()> {
     let _ = crate::theme::ensure_default_themes();
 
     let mut config = load_config().unwrap_or_default();
+    let config_default_database = config.default_database.clone();
+    let cli_vault_override = vault_path.is_some();
 
-    if config.default_database.is_none() {
+    if let Some(path) = vault_path {
+        config.default_database = Some(path);
+    }
+
+    if !cli_vault_override && config.default_database.is_none() {
         let default_path = crate::util::default_new_database_path();
         if default_path.is_file() {
             config.default_database = Some(default_path);
@@ -415,6 +295,8 @@ pub fn run(
         max_len: 0,
         theme,
         config,
+        config_default_database,
+        cli_vault_override,
         available_themes: Vec::new(),
         settings_state: ListState::default(),
         choosing_theme: false,
