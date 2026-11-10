@@ -78,7 +78,7 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
     execute!(io::stdout(), EnableMouseCapture)?;
 
-    app::run(&mut terminal, options.slim_mode, options.vault_path)?;
+    let result = app::run(&mut terminal, options.slim_mode, options.vault_path);
 
     execute!(io::stdout(), DisableMouseCapture)?;
     ratatui::restore();
