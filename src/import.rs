@@ -76,6 +76,7 @@ pub fn import_csv(path: &Path) -> anyhow::Result<Vec<Entry>> {
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,
+            archived: false,
         };
 
         if entry.name.is_empty() && entry.user.is_empty() && entry.password.is_empty() {
@@ -164,6 +165,7 @@ impl From<BitwardenItem> for Entry {
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,
+            archived: false,
         }
     }
 }
@@ -197,6 +199,7 @@ impl From<FlatEntry> for Entry {
             date_last_modify: String::new(),
             password_reuse_count: 0,
             duplicate_user_count: 0,
+            archived: false,
         }
     }
 }

@@ -50,6 +50,7 @@ pub struct VaultTab {
     pub filtered: Vec<usize>,
     pub query: String,
     pub index_state: TableState,
+    pub show_archived: bool,
 }
 
 #[derive(PartialEq, Eq)]
@@ -88,6 +89,7 @@ pub struct App {
     pub confirm_exit: bool,
     pub entries: Vec<Entry>,
     pub filtered: Vec<usize>,
+    pub show_archived: bool,
     pub kdbx: Option<Database>,
     pub db_key: Option<DatabaseKey>,
     pub theme: Theme,
@@ -166,9 +168,10 @@ impl App {
             .iter()
             .enumerate()
             .filter(|(_, entry)| {
-                query.is_empty()
-                    || entry.name.to_lowercase().contains(&query)
-                    || entry.user.to_lowercase().contains(&query)
+                entry.archived == self.show_archived
+                    && (query.is_empty()
+                        || entry.name.to_lowercase().contains(&query)
+                        || entry.user.to_lowercase().contains(&query))
             })
             .map(|(i, _)| i)
             .collect();
@@ -211,6 +214,7 @@ impl App {
         tab.filtered = std::mem::take(&mut self.filtered);
         tab.query = std::mem::take(&mut self.query);
         tab.index_state = std::mem::take(&mut self.index_state);
+        tab.show_archived = self.show_archived;
     }
 
     fn load_active_tab(&mut self) {
@@ -224,6 +228,7 @@ impl App {
         self.filtered = std::mem::take(&mut tab.filtered);
         self.query = std::mem::take(&mut tab.query);
         self.index_state = std::mem::take(&mut tab.index_state);
+        self.show_archived = tab.show_archived;
     }
 
     pub fn active_database_path(&self) -> Option<PathBuf> {
@@ -259,6 +264,7 @@ impl App {
             filtered: Vec::new(),
             query: String::new(),
             index_state: TableState::default().with_selected(Some(0)),
+            show_archived: false,
         });
         self.refresh_tab_labels();
         self.active_tab = self.tabs.len() - 1;
@@ -291,6 +297,7 @@ impl App {
             self.entries.clear();
             self.filtered.clear();
             self.query.clear();
+            self.show_archived = false;
             self.screen = Screen::Login;
             return;
         }
@@ -366,6 +373,7 @@ fn maybe_auto_lock(app: &mut App) {
     app.filtered.clear();
     app.password.clear();
     app.query.clear();
+    app.show_archived = false;
     app.kdbx = None;
     app.db_key = None;
     app.edit_entry = None;
@@ -468,6 +476,7 @@ pub fn run(
         confirm_exit: false,
         entries: Vec::new(),
         filtered: Vec::new(),
+        show_archived: false,
         kdbx: None,
         db_key: None,
         creating_database: false,

@@ -207,7 +207,7 @@ fn save_edit(app: &mut App) {
     }
 }
 
-fn persist_entry(app: &mut App, idx: usize) {
+pub(crate) fn persist_entry(app: &mut App, idx: usize) {
     let path = app.active_database_path();
     let (Some(db), Some(key), Some(path)) = (app.kdbx.as_mut(), app.db_key.as_ref(), path.as_ref())
     else {

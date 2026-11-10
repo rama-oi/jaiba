@@ -13,9 +13,9 @@ use crate::db::Entry;
 use crate::theme::Theme;
 use crate::util::wrap_help_items;
 
-fn help_items(slim_mode: bool) -> &'static [&'static str] {
-    if slim_mode {
-        &[
+fn help_items(slim_mode: bool, show_archived: bool) -> &'static [&'static str] {
+    match (slim_mode, show_archived) {
+        (true, false) => &[
             "[↑↓]",
             "[^u]",
             "[^p]",
@@ -23,14 +23,29 @@ fn help_items(slim_mode: bool) -> &'static [&'static str] {
             "[^r]",
             "[^a]",
             "[^s]",
+            "[^h]",
+            "[^l]",
             "[^o]",
             "[^←→]",
             "[^w]",
             "[enter]",
             "[esc]",
-        ]
-    } else {
-        &[
+        ],
+        (true, true) => &[
+            "[↑↓]",
+            "[^u]",
+            "[^p]",
+            "[^t]",
+            "[^r]",
+            "[^h]",
+            "[^l]",
+            "[^o]",
+            "[^←→]",
+            "[^w]",
+            "[enter]",
+            "[esc]",
+        ],
+        (false, false) => &[
             "[↑↓] navigate",
             "[^u] cp_user",
             "[^p] cp_password",
@@ -38,12 +53,28 @@ fn help_items(slim_mode: bool) -> &'static [&'static str] {
             "[^r] cp_url",
             "[^a] add_entry",
             "[^s] settings",
+            "[^h] archive",
+            "[^l] archived_list",
             "[^o] open_database",
             "[^←→] switch_tab",
             "[^w] close_tab",
             "[enter] expand_entry",
             "[esc] quit",
-        ]
+        ],
+        (false, true) => &[
+            "[↑↓] navigate",
+            "[^u] cp_user",
+            "[^p] cp_password",
+            "[^t] cp_totp",
+            "[^r] cp_url",
+            "[^h] unarchive",
+            "[^l] regular_list",
+            "[^o] open_database",
+            "[^←→] switch_tab",
+            "[^w] close_tab",
+            "[enter] expand_entry",
+            "[esc] quit",
+        ],
     }
 }
 
@@ -106,7 +137,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(help_items(app.slim_mode), help_width);
+    let help_lines = wrap_help_items(help_items(app.slim_mode, app.show_archived), help_width);
     let help_height = help_lines.len() as u16;
     let tab_height = if app.tabs.len() >= 2 { 2 } else { 0 };
 
@@ -222,14 +253,18 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let input_text = app.query.clone();
     let input_style = Style::default().fg(app.theme.text);
 
+    let mut input_block = Block::default()
+        .borders(Borders::ALL)
+        .padding(Padding::horizontal(1))
+        .border_style(Style::default().fg(app.theme.border));
+
+    if app.show_archived {
+        input_block = input_block.title(" Archived ");
+    }
+
     let input = Paragraph::new(input_text.as_str())
         .style(input_style)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .padding(Padding::horizontal(1))
-                .border_style(Style::default().fg(app.theme.border)),
-        );
+        .block(input_block);
 
     frame.set_cursor_position((
         query_area.x + 2 + input_text.chars().count() as u16,

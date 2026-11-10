@@ -1,3 +1,8 @@
+## 8
+
+- Support for multiple vaultx
+- Add archived list and shortcuts to toggle entries between the two lists
+
 ## 7
 
 - Several adjustments for slim mode
@@ -7,8 +12,8 @@
 - Change quit command from `^q` to `esc` on index and login screen
 - Themes are now using the same names as `Coqui` and `Caiman` `catppucin-mocha` instead of `Catppuccin Mocha`
 - Ability to work in small windows so you can have `Jaiba` like a floating window
-- Dropping support for packages, now the official install is coming from cargo.
-- Trimming the readme file so it can actually be digested.
+- Dropping support for packages, now the official install is coming from cargo
+- Trimming the readme file so it can actually be digested
 
 ## 5
 
