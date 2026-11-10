@@ -1,6 +1,6 @@
 use crate::app::App;
 use crate::clipboard::{cp_password, cp_totp, cp_url, cp_user};
-use crate::db::Entry;
+use crate::db::{Entry, calculate_warnings};
 
 pub fn handle_shortcut(app: &mut App, c: char) {
     match c {
@@ -10,6 +10,8 @@ pub fn handle_shortcut(app: &mut App, c: char) {
         'r' => cp_url(app),
         'a' => add_entry(app),
         's' => open_settings(app),
+        'h' => toggle_archive_selected(app),
+        'l' => toggle_archived_view(app),
         _ => {}
     }
 }
@@ -65,4 +67,55 @@ fn open_settings(app: &mut App) {
 
     app.settings_state.select(selected);
     app.screen = crate::app::Screen::Settings;
+}
+
+fn toggle_archived_view(app: &mut App) {
+    app.show_archived = !app.show_archived;
+    app.refresh_filter();
+    app.status = Some(
+        if app.show_archived {
+            "Showing archived entries"
+        } else {
+            "Showing regular entries"
+        }
+        .to_string(),
+    );
+}
+
+/// Ctrl+H: archive the selected entry (or restore it when viewing the archive).
+fn toggle_archive_selected(app: &mut App) {
+    let Some(selected) = app.index_state.selected() else {
+        return;
+    };
+    let Some(&entry_idx) = app.filtered.get(selected) else {
+        return;
+    };
+    let Some(entry) = app.entries.get_mut(entry_idx) else {
+        return;
+    };
+
+    entry.archived = !entry.archived;
+    let archived = entry.archived;
+
+    calculate_warnings(&mut app.entries);
+    app.refresh_filter();
+
+    // Keep the cursor near where it was instead of jumping back to the top.
+    if !app.filtered.is_empty() {
+        app.index_state
+            .select(Some(selected.min(app.filtered.len() - 1)));
+    }
+
+    crate::input::edit::persist_entry(app, entry_idx);
+
+    if app.status.as_deref() == Some("Saved") {
+        app.status = Some(
+            if archived {
+                "Entry archived"
+            } else {
+                "Entry restored from archive"
+            }
+            .to_string(),
+        );
+    }
 }

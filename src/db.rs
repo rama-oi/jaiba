@@ -71,6 +71,8 @@ fn urlencoding_encode(input: &str) -> String {
     out
 }
 
+pub const ARCHIVED_TAG: &str = "archived";
+
 #[derive(Clone, Default)]
 pub struct Entry {
     pub id: Option<EntryId>,
@@ -83,6 +85,7 @@ pub struct Entry {
     pub date_last_modify: String,
     pub password_reuse_count: u32,
     pub duplicate_user_count: u32,
+    pub archived: bool,
 }
 
 fn format_days_ago(dt: chrono::NaiveDateTime) -> String {
@@ -129,6 +132,7 @@ pub fn unlock_database(
                 date_last_modify,
                 password_reuse_count: 0,
                 duplicate_user_count: 0,
+                archived: e.tags.iter().any(|tag| tag == ARCHIVED_TAG),
             }
         })
         .collect();
@@ -253,6 +257,10 @@ fn apply_fields(e: &mut EntryMut<'_>, entry: &Entry) {
     e.set_unprotected(fields::URL, entry.url.clone());
     e.set_unprotected(fields::OTP, entry.totp.clone());
     e.set_unprotected(fields::NOTES, entry.notes.clone());
+    e.tags.retain(|tag| tag != ARCHIVED_TAG);
+    if entry.archived {
+        e.tags.push(ARCHIVED_TAG.to_string());
+    }
     e.times.last_modification = Some(Times::now());
 }
 
@@ -263,16 +271,20 @@ fn sibling_tmp_path(path: &Path) -> PathBuf {
 }
 
 pub fn calculate_warnings(entries: &mut Vec<Entry>) {
-    let mut password_counts: HashMap<String, u32> = HashMap::new();
-    let mut user_counts: HashMap<String, u32> = HashMap::new();
+    let mut password_counts: HashMap<(bool, String), u32> = HashMap::new();
+    let mut user_counts: HashMap<(bool, String), u32> = HashMap::new();
 
     for entry in entries.iter() {
         if !entry.password.trim().is_empty() {
-            *password_counts.entry(entry.password.clone()).or_insert(0) += 1;
+            *password_counts
+                .entry((entry.archived, entry.password.clone()))
+                .or_insert(0) += 1;
         }
 
         if !entry.user.trim().is_empty() {
-            *user_counts.entry(entry.user.clone()).or_insert(0) += 1;
+            *user_counts
+                .entry((entry.archived, entry.user.clone()))
+                .or_insert(0) += 1;
         }
     }
 
@@ -280,20 +292,29 @@ pub fn calculate_warnings(entries: &mut Vec<Entry>) {
         entry.password_reuse_count = if entry.password.trim().is_empty() {
             0
         } else {
-            password_counts.get(&entry.password).copied().unwrap_or(0)
+            password_counts
+                .get(&(entry.archived, entry.password.clone()))
+                .copied()
+                .unwrap_or(0)
         };
 
         entry.duplicate_user_count = if entry.user.trim().is_empty() {
             0
         } else {
-            user_counts.get(&entry.user).copied().unwrap_or(0)
+            user_counts
+                .get(&(entry.archived, entry.user.clone()))
+                .copied()
+                .unwrap_or(0)
         };
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{build_database_key, create_database, save_database, unlock_database};
+    use super::{
+        Entry, build_database_key, calculate_warnings, create_database, save_database,
+        unlock_database,
+    };
     use keepass::db::fields;
     use std::fs;
     use std::path::{Path, PathBuf};
@@ -330,6 +351,67 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+
+    fn entry(name: &str, user: &str, password: &str, archived: bool) -> Entry {
+        Entry {
+            name: name.to_string(),
+            user: user.to_string(),
+            password: password.to_string(),
+            archived,
+            ..Entry::default()
+        }
+    }
+
+    #[test]
+    fn archived_entries_do_not_affect_active_counters() {
+        let mut entries = vec![
+            entry("a", "me", "pw", false),
+            entry("b", "me", "pw", false),
+            entry("c", "me", "pw", true),
+            entry("d", "me", "pw", true),
+            entry("e", "me", "pw", true),
+        ];
+
+        calculate_warnings(&mut entries);
+
+        assert_eq!(entries[0].password_reuse_count, 2);
+        assert_eq!(entries[0].duplicate_user_count, 2);
+        assert_eq!(entries[2].password_reuse_count, 3);
+        assert_eq!(entries[2].duplicate_user_count, 3);
+
+        entries[1].archived = true;
+        calculate_warnings(&mut entries);
+        assert_eq!(entries[0].password_reuse_count, 1);
+        assert_eq!(entries[1].password_reuse_count, 4);
+    }
+
+    #[test]
+    fn archived_state_survives_save_and_unlock() {
+        let dir = TestDir::new();
+        let database_path = dir.join("archive.kdbx");
+        let (mut database, key, _) =
+            create_database(&database_path, "pw", None).expect("database should be created");
+
+        let mut entries = vec![entry("old", "u", "p", true), entry("new", "u", "p", false)];
+        save_database(&database_path, &key, &mut database, &mut entries)
+            .expect("database should be saved");
+
+        let (mut database, key, mut loaded) =
+            unlock_database(&database_path, "pw", None).expect("database should unlock");
+        assert!(loaded.iter().find(|e| e.name == "old").unwrap().archived);
+        assert!(!loaded.iter().find(|e| e.name == "new").unwrap().archived);
+
+        for e in loaded.iter_mut() {
+            e.archived = !e.archived;
+        }
+        save_database(&database_path, &key, &mut database, &mut loaded)
+            .expect("database should be saved");
+
+        let (_, _, loaded) =
+            unlock_database(&database_path, "pw", None).expect("database should unlock");
+        assert!(!loaded.iter().find(|e| e.name == "old").unwrap().archived);
+        assert!(loaded.iter().find(|e| e.name == "new").unwrap().archived);
     }
 
     #[test]

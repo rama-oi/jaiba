@@ -5,6 +5,27 @@ use crate::input::command::{handle_shortcut, preview_entry};
 
 pub fn handle_index_input(app: &mut App, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) {
+        match key.code {
+            KeyCode::Char('o') => {
+                app.reset_open_database();
+                app.screen = crate::app::Screen::OpenDatabase;
+                return;
+            }
+            KeyCode::Char('w') => {
+                app.close_active_tab();
+                return;
+            }
+            KeyCode::Left => {
+                switch_relative(app, -1);
+                return;
+            }
+            KeyCode::Right | KeyCode::Tab => {
+                switch_relative(app, 1);
+                return;
+            }
+            _ => {}
+        }
+
         if let KeyCode::Char(c) = key.code {
             app.status = None;
             handle_shortcut(app, c.to_ascii_lowercase());
@@ -79,4 +100,14 @@ pub fn handle_index_input(app: &mut App, key: KeyEvent) {
 
         _ => {}
     }
+}
+
+fn switch_relative(app: &mut App, delta: isize) {
+    if app.tabs.len() < 2 {
+        return;
+    }
+
+    let count = app.tabs.len() as isize;
+    let target = (app.active_tab as isize + delta).rem_euclid(count) as usize;
+    app.switch_tab(target);
 }

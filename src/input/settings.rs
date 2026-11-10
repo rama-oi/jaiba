@@ -4,7 +4,6 @@ use std::time::Duration;
 use crossterm::event::KeyCode;
 
 use crate::app::{App, ExportStep, ImportStep, PasswordChangeStep, Screen};
-use crate::config::save_config;
 use crate::db::{Entry, build_database_key, calculate_warnings, save_database, unlock_database};
 use crate::theme::load_theme;
 use crate::util::expand_tilde;
@@ -193,7 +192,7 @@ fn commit_field(app: &mut App) {
         _ => return,
     }
 
-    app.status = Some(match save_config(&app.config) {
+    app.status = Some(match app.save_config() {
         Ok(()) => "saved".to_string(),
         Err(err) => format!("couldn't save config: {err}"),
     });
@@ -272,7 +271,7 @@ fn handle_change_password_input(app: &mut App, key: KeyCode) {
 }
 
 fn verify_current_password(app: &mut App) {
-    let Some(path) = app.config.default_database.clone() else {
+    let Some(path) = app.active_database_path() else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
@@ -281,7 +280,7 @@ fn verify_current_password(app: &mut App) {
     match unlock_database(
         &path,
         &app.current_password_buffer,
-        app.config.keyfile.as_deref(),
+        app.active_keyfile_path().as_deref(),
     ) {
         Ok(_) => {
             app.current_password_buffer.clear();
@@ -319,7 +318,12 @@ fn commit_password_change(app: &mut App) {
         }
     };
 
-    let (Some(path), Some(db)) = (app.config.default_database.clone(), app.kdbx.as_mut()) else {
+    let Some(path) = app.active_database_path() else {
+        app.status = Some("no unlocked database".to_string());
+        cancel_change_password(app);
+        return;
+    };
+    let Some(db) = app.kdbx.as_mut() else {
         app.status = Some("no unlocked database".to_string());
         cancel_change_password(app);
         return;
@@ -461,7 +465,7 @@ fn finish_import(app: &mut App, imported: Vec<Entry>, source: &Path) {
     app.refresh_filter();
 
     let (Some(path), Some(key), Some(db)) = (
-        app.config.default_database.clone(),
+        app.active_database_path(),
         app.db_key.clone(),
         app.kdbx.as_mut(),
     ) else {
@@ -683,7 +687,7 @@ fn apply_selected_theme(app: &mut App) {
             app.theme = theme;
             app.config.theme = Some(crate::theme::slugify(&name));
 
-            app.status = Some(match save_config(&app.config) {
+            app.status = Some(match app.save_config() {
                 Ok(()) => format!("theme set to {name}"),
                 Err(err) => format!("theme applied, but couldn't save config: {err}"),
             });
