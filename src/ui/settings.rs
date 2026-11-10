@@ -59,6 +59,18 @@ fn import_help_items(slim_mode: bool) -> &'static [&'static str] {
 }
 
 pub fn draw_settings(frame: &mut Frame, app: &mut App) {
+    let full_area = frame.area();
+    let tab_height = if app.tabs.len() >= 2 { 2 } else { 0 };
+    crate::ui::tabs::draw_tabs(
+        frame,
+        app,
+        ratatui::layout::Rect {
+            x: full_area.x,
+            y: full_area.y,
+            width: full_area.width,
+            height: tab_height,
+        },
+    );
     if app.exporting_database {
         draw_export(frame, app);
     } else if app.importing_database {
@@ -72,8 +84,19 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     }
 }
 
+fn content_area(frame: &Frame, app: &App) -> ratatui::layout::Rect {
+    let area = frame.area();
+    let tab_height = if app.tabs.len() >= 2 { 2 } else { 0 };
+    ratatui::layout::Rect {
+        x: area.x,
+        y: area.y.saturating_add(tab_height),
+        width: area.width,
+        height: area.height.saturating_sub(tab_height),
+    }
+}
+
 fn draw_main_settings(frame: &mut Frame, app: &mut App) {
-    let full_area = frame.area();
+    let full_area = content_area(frame, app);
 
     let editing_field = app.editing_field;
     let field_buffer = app.field_buffer.clone();
@@ -211,7 +234,7 @@ fn draw_main_settings(frame: &mut Frame, app: &mut App) {
 }
 
 fn draw_change_password(frame: &mut Frame, app: &mut App) {
-    let full_area = frame.area();
+    let full_area = content_area(frame, app);
 
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(change_password_help_items(app.slim_mode), help_width);
@@ -311,7 +334,7 @@ fn draw_change_password(frame: &mut Frame, app: &mut App) {
 }
 
 fn draw_import(frame: &mut Frame, app: &mut App) {
-    let full_area = frame.area();
+    let full_area = content_area(frame, app);
 
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(import_help_items(app.slim_mode), help_width);
@@ -414,7 +437,7 @@ fn draw_import(frame: &mut Frame, app: &mut App) {
 }
 
 fn draw_export(frame: &mut Frame, app: &mut App) {
-    let full_area = frame.area();
+    let full_area = content_area(frame, app);
 
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(export_help_items(app.slim_mode), help_width);
@@ -526,7 +549,7 @@ fn draw_export(frame: &mut Frame, app: &mut App) {
 }
 
 fn draw_theme_picker(frame: &mut Frame, app: &mut App) {
-    let full_area = frame.area();
+    let full_area = content_area(frame, app);
 
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(export_help_items(app.slim_mode), help_width);

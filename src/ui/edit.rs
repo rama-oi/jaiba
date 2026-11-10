@@ -85,6 +85,23 @@ fn wrap_notes(notes: &str, width: usize) -> Vec<String> {
 
 pub fn draw_edit(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
+    let tab_height = if app.tabs.len() >= 2 { 2 } else { 0 };
+    crate::ui::tabs::draw_tabs(
+        frame,
+        app,
+        ratatui::layout::Rect {
+            x: full_area.x,
+            y: full_area.y,
+            width: full_area.width,
+            height: tab_height,
+        },
+    );
+    let full_area = ratatui::layout::Rect {
+        x: full_area.x,
+        y: full_area.y.saturating_add(tab_height),
+        width: full_area.width,
+        height: full_area.height.saturating_sub(tab_height),
+    };
 
     let Some(entry) = app.edit_entry.as_ref() else {
         return;

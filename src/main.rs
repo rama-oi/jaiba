@@ -61,6 +61,11 @@ struct CliOptions {
     vault_path: Option<PathBuf>,
 }
 
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+};
+
 fn main() -> io::Result<()> {
     let options = match parse_cli_args(std::env::args().skip(1)) {
         Ok(options) => options,
@@ -71,12 +76,14 @@ fn main() -> io::Result<()> {
     };
 
     let mut terminal = ratatui::init();
+    execute!(io::stdout(), EnableMouseCapture)?;
 
     app::run(&mut terminal, options.slim_mode, options.vault_path)?;
 
+    execute!(io::stdout(), DisableMouseCapture)?;
     ratatui::restore();
 
-    Ok(())
+    result
 }
 
 fn parse_cli_args(args: impl IntoIterator<Item = String>) -> Result<CliOptions, String> {
